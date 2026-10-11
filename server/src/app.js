@@ -21,6 +21,10 @@ async function createApp({ env = process.env, storePath } = {}) {
 
   app.use(express.json({ limit: "200kb" }));
 
+  const path = require("path");
+  app.use(express.static(path.join(__dirname, "../../web")));
+  app.use("/site", express.static(path.join(__dirname, "../../site")));
+
   app.get("/health", async (request, response, next) => {
     try {
       const [block, accounts] = await Promise.all([hre.ethers.provider.getBlockNumber(), hre.ethers.getSigners()]);
