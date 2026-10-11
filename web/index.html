@@ -135,59 +135,126 @@
       <main class="settl-bento-grid">
 
         <!-- -----------------------------------------------------------------
-             TOP-LEFT HERO CARD: Panoramic Workspace Room Banner
+             TOP-LEFT HERO CARD: Main Agreement Overview & NL Deal Engine
              ----------------------------------------------------------------- -->
-        <section class="bento-card bento-hero-panoramic" id="card-hero-agreement">
-          <!-- Panoramic Background Image Layer -->
-          <div class="hero-panoramic-backdrop"></div>
+        <section class="bento-card bento-hero-agreement" id="card-hero-agreement">
+          <!-- Subtle Gradient Backdrop Layer -->
+          <div class="hero-gradient-overlay"></div>
 
-          <!-- Top Floating Pills Row -->
-          <div class="hero-floating-top-row">
-            <!-- Left Live Badge -->
-            <div class="glass-pill-badge live-pill" title="Simulated funds enabled in EVM Vault">
-              <span class="pulsing-live-dot"></span>
-              <span class="live-text">Live</span>
+          <!-- Top Natural Language Command & Search Bar -->
+          <div class="hero-nl-search-wrapper">
+            <div class="hero-nl-search-bar">
+              <span class="nl-search-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </span>
+              <input type="text" class="nl-search-input" id="hero-ai-input" placeholder="Type a deal in plain English (e.g. 'Riya pays Aman ₹30,000 for a website in 3 stages') or search agreements..." />
+              <button type="button" class="btn-nl-submit" id="btn-hero-ai-submit" title="Create deal from prompt">
+                <span>Create Deal</span>
+                <kbd>↵</kbd>
+              </button>
             </div>
-
-            <!-- Right Telemetry Stat Pills -->
-            <div class="hero-telemetry-pills">
-              <div class="glass-pill-badge" title="Total Escrow Value">
-                <span class="pill-icon">🏛</span>
-                <span id="dash-money-total">₹30,000</span>
-              </div>
-              <div class="glass-pill-badge" title="Funds currently locked in vault">
-                <span class="pill-icon">🔒</span>
-                <span id="metric-val-locked">₹20,000</span>
-              </div>
-              <div class="glass-pill-badge" title="Paid out to provider">
-                <span class="pill-icon">⚡</span>
-                <span id="metric-val-paidout">₹10,000</span>
-              </div>
-              <div class="glass-pill-badge" title="Vault reconciliation status">
-                <span class="pill-icon">🛡</span>
-                <span id="dash-reconcile-badge">100% Valid</span>
-              </div>
+            <!-- Quick Suggestion Prompt Chips -->
+            <div class="hero-nl-chips-row">
+              <span class="chips-caption">Quick templates:</span>
+              <button type="button" class="nl-template-chip" data-template="freelance">Freelance Website</button>
+              <button type="button" class="nl-template-chip" data-template="flatmates">Flatmates Wi-Fi</button>
+              <button type="button" class="nl-template-chip" data-template="construction">Construction Milestone</button>
+              <button type="button" class="nl-template-chip" data-template="bonus">Company Bonus</button>
             </div>
           </div>
 
-          <!-- Bottom Hero Overlay Content -->
-          <div class="hero-bottom-overlay">
-            <div class="hero-title-group">
-              <div class="hero-agency-chip" id="capsule-deal-title">Design Agency</div>
-              <h1 class="hero-main-title" id="dash-deal-title">Website redesign</h1>
-              <p class="hero-subtitle">Smart Staged Escrow • 3 of 5 milestones settled • Meera (Arbiter)</p>
+          <!-- Main Agreement Content Area -->
+          <div class="hero-main-content">
+            <!-- Header Meta Row: Badges & Copy Link -->
+            <div class="hero-meta-top-row flex-between">
+              <div class="hero-badges-group flex-align-center gap-2">
+                <span class="badge badge-active" id="dash-phase-badge">Active</span>
+                <span class="contract-hash-pill" id="proof-vault-hash" title="Click to copy agreement fingerprint">0x5FbD...0aa3</span>
+                <span class="simulated-funds-pill" title="All funds are simulated in EVM test chain">Simulated Funds</span>
+              </div>
+              <button type="button" class="btn-text-action" id="btn-copy-agreement-link" title="Copy agreement link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                <span>Copy link</span>
+              </button>
             </div>
 
-            <!-- Hero Floating Prompt Pill Bar: (+) [ Prompt Input ] [ Submit ] -->
-            <div class="hero-input-capsule">
-              <button type="button" class="capsule-add-btn" id="btn-hero-attach" title="Upload proof or attach document">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-              </button>
-              <input type="text" class="capsule-input-box" id="hero-ai-input" placeholder="Instruct AI arbiter or paste milestone terms..." />
-              <button type="button" class="capsule-submit-btn" id="btn-hero-ai-submit">Submit</button>
+            <!-- Agreement Title & Amount -->
+            <div class="hero-heading-block">
+              <h1 class="hero-agreement-title" id="dash-deal-title">Riya will pay Aman ₹30,000 for a website</h1>
+              <div class="hero-amount-and-participants flex-between">
+                <div class="hero-total-amount" id="dash-money-total">₹30,000</div>
+                <div class="hero-participants-summary" id="dash-participants-meta">
+                  <span class="participant-tag client">Client: <strong id="tag-client-name">Riya</strong></span>
+                  <span class="participant-tag provider">Provider: <strong id="tag-provider-name">Aman</strong></span>
+                  <span class="participant-tag arbiter">Arbiter: <strong id="tag-arbiter-name">Meera</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lifecycle Stepper: Check → Sign → Fund → Pay -->
+            <div class="hero-lifecycle-stepper">
+              <div class="lifecycle-track">
+                <div class="lifecycle-step passed" data-step="check">
+                  <div class="step-line"></div>
+                  <span class="step-label">Check</span>
+                </div>
+                <div class="lifecycle-step passed" data-step="sign">
+                  <div class="step-line"></div>
+                  <span class="step-label">Sign</span>
+                </div>
+                <div class="lifecycle-step passed" data-step="fund">
+                  <div class="step-line"></div>
+                  <span class="step-label">Fund</span>
+                </div>
+                <div class="lifecycle-step active" data-step="pay">
+                  <div class="step-line"></div>
+                  <span class="step-label">Pay</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Next Required Action Banner -->
+            <div class="hero-next-action-card flex-between" id="dash-next-action-card">
+              <div class="action-left flex-align-center gap-2">
+                <div class="action-pulse-icon">⚡</div>
+                <div>
+                  <div class="action-subtext" id="dash-waiting-for">Waiting for Aman</div>
+                  <div class="action-main-text" id="dash-next-action-desc">Next action: Aman submits proof for Stage 1</div>
+                </div>
+              </div>
+              <div class="action-right flex-align-center gap-3">
+                <div class="milestone-progress-chip" id="dash-milestone-count-chip">
+                  <span id="dash-stages-settled-text">1 of 3</span> settled
+                </div>
+              </div>
+            </div>
+
+            <!-- Compact Balance & Escrow Summary Row -->
+            <div class="hero-escrow-summary-bar flex-between">
+              <div class="escrow-stat-col">
+                <span class="stat-caption">Locked in Escrow</span>
+                <span class="stat-value" id="metric-val-locked">₹20,000</span>
+              </div>
+              <div class="escrow-divider"></div>
+              <div class="escrow-stat-col">
+                <span class="stat-caption">Released to Provider</span>
+                <span class="stat-value" id="metric-val-paidout">₹10,000</span>
+              </div>
+              <div class="escrow-divider"></div>
+              <div class="escrow-stat-col">
+                <span class="stat-caption">Withdrawable</span>
+                <span class="stat-value text-accent" id="your-money-amount">₹0</span>
+              </div>
+              <div class="escrow-divider"></div>
+              <div class="escrow-stat-col flex-align-center">
+                <span class="badge badge-balanced" id="dash-reconcile-badge">Balanced</span>
+              </div>
             </div>
           </div>
 
