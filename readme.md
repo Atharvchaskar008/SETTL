@@ -272,7 +272,7 @@ Stage numbers in the API count from 1.
 
 ### The dashboard
 
-`npm start` serves the dashboard in [app/](app/) at `http://localhost:3000`. It is one page with three parts.
+`npm start` serves the dashboard in [app/](app/) at `http://localhost:3000/app/`. The landing page in [landing/](landing/) is the front door at `http://localhost:3000/` once it has been built with `npm run build`, and its buttons open the dashboard; until then `/` goes straight to the dashboard. The dashboard is one page with three parts.
 
 | Part | What it does |
 |---|---|

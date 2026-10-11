@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const path = require("node:path");
 const express = require("express");
 const hre = require("hardhat");
@@ -39,11 +40,21 @@ async function createApp({ env = process.env, storePath } = {}) {
   const auth = createAuth({ store });
   app.use(auth.identify);
 
-  // The dashboard is served from app/, and the page that explains the project from site/.
-  app.use(express.static(path.join(__dirname, "../../app")));
+  // The landing page is the front door, and its buttons lead to the dashboard at /app/.
+  // The landing page exists only once it has been built (npm run build); until then
+  // the front door goes straight to the dashboard.
+  const landing = path.join(__dirname, "../../dist");
+  const dashboard = path.join(__dirname, "../../app");
+  app.use("/app", express.static(dashboard));
+  app.get("/", (request, response, next) => {
+    if (fs.existsSync(path.join(landing, "index.html"))) return next();
+    response.redirect("/app/");
+  });
+  app.use(express.static(landing));
+  // The dashboard's own files are also answered at the top level, where its page asks for them.
+  app.use(express.static(dashboard, { index: false }));
   app.use("/site", express.static(path.join(__dirname, "../../site")));
-  // The landing page, once built with `npm run build`. Its buttons open the dashboard at /.
-  app.use("/landing", express.static(path.join(__dirname, "../../dist")));
+  app.use("/landing", express.static(landing));
   // The wallet console, and the browser build of ethers it uses, served locally so it works offline.
   app.use("/wallet", express.static(path.join(__dirname, "../../wallet")));
   app.get("/vendor/ethers.js", (request, response) => {

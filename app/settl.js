@@ -747,7 +747,7 @@
   }
 
   function copyLink() {
-    const link = `${location.origin}/#${state.openId}`;
+    const link = `${location.origin}${location.pathname}#${state.openId}`;
     const done = () => say(`Link copied: ${link}`);
     if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, () => say(link));
     else say(link);
