@@ -263,41 +263,128 @@ async function loadDeals() {
   if (!res.ok) return;
 
   state.dealsList = res.data.deals;
-  const tbody = document.getElementById("deals-table-body");
-  if (!tbody) return;
 
-  tbody.innerHTML = state.dealsList.map(deal => {
+  // Render Top-Right Panel Agreements
+  renderAgreementsPanel("all");
+  setupAgreementFilterTabs();
+
+  // Render Modal Table for Backward Compatibility
+  const tbody = document.getElementById("deals-table-body");
+  if (tbody) {
+    tbody.innerHTML = state.dealsList.map(deal => {
+      const isCurrent = deal.id === state.currentDealId;
+      return `
+        <tr class="deal-row-interactive" data-deal-id="${deal.id}" style="${isCurrent ? 'background: rgba(26,63,117,0.06); font-weight: 700;' : ''}">
+          <td>${escapeHtml(deal.title)} ${isCurrent ? '<span class="badge badge-completed">Active</span>' : ''}</td>
+          <td><span class="badge ${getPhaseBadgeClass(deal.phase)}">${escapeHtml(deal.phase)}</span></td>
+          <td class="amount-rupee">${formatRupees(deal.totalAmount)}</td>
+          <td>${escapeHtml(deal.stagesSettled)}</td>
+          <td class="text-muted text-sm">${escapeHtml(deal.waitingFor)}</td>
+          <td>
+            <button type="button" class="btn btn-secondary btn-sm btn-select-deal" data-deal-id="${deal.id}">
+              Select
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    tbody.querySelectorAll(".btn-select-deal").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const dealId = btn.getAttribute("data-deal-id");
+        closeAllModals();
+        await loadDealDashboard(dealId);
+      });
+    });
+
+    tbody.querySelectorAll(".deal-row-interactive").forEach(row => {
+      row.addEventListener("click", async () => {
+        const dealId = row.getAttribute("data-deal-id");
+        closeAllModals();
+        await loadDealDashboard(dealId);
+      });
+    });
+  }
+}
+
+function setupAgreementFilterTabs() {
+  document.querySelectorAll(".filter-tab-pill").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".filter-tab-pill").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      const filter = tab.getAttribute("data-filter");
+      renderAgreementsPanel(filter);
+    });
+  });
+}
+
+function renderAgreementsPanel(filter = "all") {
+  const container = document.getElementById("action-centre-stack-list");
+  const countBadge = document.getElementById("agreements-total-count");
+  if (!container || !state.dealsList) return;
+
+  let filtered = state.dealsList;
+  if (filter === "active") {
+    filtered = state.dealsList.filter(d => d.phase === "Active" || d.phase === "Funding");
+  } else if (filter === "drafts") {
+    filtered = state.dealsList.filter(d => d.phase === "Review" || d.phase === "Agree");
+  } else if (filter === "completed") {
+    filtered = state.dealsList.filter(d => d.phase === "Closed");
+  } else if (filter === "disputed") {
+    filtered = state.dealsList.filter(d => d.hasDispute || d.phase === "Disputed");
+  }
+
+  if (countBadge) countBadge.textContent = String(filtered.length);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-4 text-muted text-sm">
+        No agreements found in this category.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(deal => {
     const isCurrent = deal.id === state.currentDealId;
+    let pct = 33;
+    if (deal.stagesSettled) {
+      const match = deal.stagesSettled.match(/(\d+)\s+of\s+(\d+)/);
+      if (match) {
+        pct = Math.round((Number(match[1]) / Number(match[2])) * 100);
+      }
+    }
+    if (deal.phase === "Closed") pct = 100;
+
     return `
-      <tr class="deal-row-interactive" data-deal-id="${deal.id}" style="${isCurrent ? 'background: rgba(26,63,117,0.06); font-weight: 700;' : ''}">
-        <td>${escapeHtml(deal.title)} ${isCurrent ? '<span class="badge badge-completed">Active</span>' : ''}</td>
-        <td><span class="badge ${getPhaseBadgeClass(deal.phase)}">${escapeHtml(deal.phase)}</span></td>
-        <td class="amount-rupee">${formatRupees(deal.totalAmount)}</td>
-        <td>${escapeHtml(deal.stagesSettled)}</td>
-        <td class="text-muted text-sm">${escapeHtml(deal.waitingFor)}</td>
-        <td>
-          <button type="button" class="btn btn-secondary btn-sm btn-select-deal" data-deal-id="${deal.id}">
-            Select
-          </button>
-        </td>
-      </tr>
+      <div class="workspace-agreement-card ${isCurrent ? 'active-agreement' : ''}" data-deal-id="${deal.id}">
+        <div class="card-top-row flex-between">
+          <h3 class="agreement-card-name">${escapeHtml(deal.title)}</h3>
+          <span class="badge ${getPhaseBadgeClass(deal.phase)}">${escapeHtml(deal.phase)}</span>
+        </div>
+        <div class="card-middle-row flex-between mt-1">
+          <span class="card-party-caption">${escapeHtml(deal.waitingFor || "Collaborative agreement")}</span>
+          <span class="card-amount-val">${formatRupees(deal.totalAmount)}</span>
+        </div>
+        <div class="card-bottom-row flex-between mt-1">
+          <div class="card-progress-bar-wrap">
+            <div class="card-progress-fill" style="width: ${pct}%;"></div>
+          </div>
+          <span class="card-progress-text">${escapeHtml(deal.stagesSettled || '1/3')} milestones</span>
+        </div>
+      </div>
     `;
   }).join("");
 
-  tbody.querySelectorAll(".btn-select-deal").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const dealId = btn.getAttribute("data-deal-id");
-      closeAllModals();
-      await loadDealDashboard(dealId);
-    });
-  });
-
-  tbody.querySelectorAll(".deal-row-interactive").forEach(row => {
-    row.addEventListener("click", async () => {
-      const dealId = row.getAttribute("data-deal-id");
-      closeAllModals();
-      await loadDealDashboard(dealId);
+  container.querySelectorAll(".workspace-agreement-card").forEach(card => {
+    card.addEventListener("click", async () => {
+      const dealId = card.getAttribute("data-deal-id");
+      if (dealId) {
+        container.querySelectorAll(".workspace-agreement-card").forEach(c => c.classList.remove("active-agreement"));
+        card.classList.add("active-agreement");
+        await loadDealDashboard(dealId);
+      }
     });
   });
 }
