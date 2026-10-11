@@ -5,11 +5,14 @@
   "description": "Settl: staged payments locked in a tested escrow contract (VORTEXA 3.0, B-03 MilestoneVault)",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test",
+    "test": "hardhat test && node --test \"server/test/*.test.js\"",
+    "test:contract": "hardhat test",
+    "test:server": "node --test \"server/test/*.test.js\"",
     "start": "hardhat compile && node server/src/index.js",
     "demo": "hardhat compile && node scripts/demo.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "dotenv": "^16.4.0",
     "express": "^4.21.0"
   },
