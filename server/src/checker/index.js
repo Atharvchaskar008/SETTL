@@ -36,7 +36,7 @@ function flagOtherCurrency(checklist, text) {
       ...checklist.unclear,
       {
         issue: "Another currency is mentioned",
-        question: `The deal mentions "${found[0]}". Settl works in rupees, so state every amount in rupees.`,
+        question: `The deal mentions "${found[0]}". Settl works in rupees. Accept this to treat every amount as rupees, or edit the words.`,
         source: found[0],
       },
     ],

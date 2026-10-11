@@ -366,8 +366,20 @@
     return must(await api("POST", "/people", { name }));
   }
 
+  /** Accepts one unclear point, or every one of them when no index is given. */
   async function settleUnclear(index) {
-    const checklist = { ...state.deal.checklist, unclear: state.deal.checklist.unclear.filter((item, at) => at !== index) };
+    const kept = index === undefined ? [] : state.deal.checklist.unclear.filter((item, at) => at !== index);
+    must(await api("PUT", `/deals/${state.openId}/checklist`, { checklist: { ...state.deal.checklist, unclear: kept } }));
+  }
+
+  /**
+   * Saves a change the organiser chose to fix a problem. The stated total always follows the stages,
+   * and a point the reader raised about the same problem is settled with it.
+   */
+  async function fixChecklist(change, settles) {
+    const checklist = { ...state.deal.checklist, ...change };
+    if (settles) checklist.unclear = checklist.unclear.filter((item) => !settles.test(`${item.issue} ${item.question}`));
+    checklist.total = checklist.stages.reduce((sum, stage) => sum + (Number(stage.amount) || 0), 0);
     must(await api("PUT", `/deals/${state.openId}/checklist`, { checklist }));
   }
 
@@ -780,10 +792,65 @@
         organiser && h("button", { type: "button", onclick: () => run(() => settleUnclear(index)) }, "OK")
       )
     );
+    if (organiser && unclear.length > 1) {
+      unclear.push(
+        h("div", { class: "check" }, h("div", {}, `${unclear.length} points to accept`), h("button", { type: "button", onclick: () => run(() => settleUnclear()) }, "Accept all"))
+      );
+    }
+
+    // A problem the organiser can settle in one click is shown with the choices next to it.
+    const JUDGE_PROBLEMS = ["no-judge", "judge-is-payer", "judge-is-payee"];
+    let judgeOffered = false;
     const problems = deal.problems
       .filter((problem) => problem.code !== "unknown-person" && problem.code !== "unclear")
-      .map((problem) => h("div", { class: "check bad" }, problem.message));
+      .map((problem) => {
+        let choices = organiser ? fixesFor(problem, deal) : [];
+        if (JUDGE_PROBLEMS.includes(problem.code)) {
+          if (judgeOffered) choices = [];
+          judgeOffered = true;
+        }
+        return h(
+          "div",
+          { class: "check bad" },
+          h("div", {}, problem.message),
+          choices.length > 0 && h("div", { style: "display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center" }, choices)
+        );
+      });
     return [...unclear, ...problems];
+  }
+
+  /** The one-click ways out of a problem, if it has any. Each saves an edited checklist, which the server checks again. */
+  function fixesFor(problem, deal) {
+    const { payers, stages } = deal.checklist;
+    const ABOUT_TOTALS = /add up|not match|total/i;
+    const ABOUT_JUDGE = /judge|dispute/i;
+    const fix = (text, change, settles) => h("button", { type: "button", onclick: () => run(() => fixChecklist(change, settles)) }, text);
+    const paidIn = payers.reduce((sum, payer) => sum + (Number(payer.share) || 0), 0);
+    const paidOut = stages.reduce((sum, stage) => sum + (Number(stage.amount) || 0), 0);
+
+    if (problem.code === "totals") {
+      const choices = [];
+      if (payers.length === 1 && paidOut > 0) choices.push(fix(`${payers[0].name} pays ${rupees(paidOut)}`, { payers: [{ ...payers[0], share: paidOut }] }, ABOUT_TOTALS));
+      if (stages.length === 1 && paidIn > 0) choices.push(fix(`Stage pays ${rupees(paidIn)}`, { stages: [{ ...stages[0], amount: paidIn }] }, ABOUT_TOTALS));
+      return choices;
+    }
+    if (problem.code === "total") return paidOut > 0 ? [fix(`Total is ${rupees(paidOut)}`, {}, ABOUT_TOTALS)] : [];
+
+    if (["no-judge", "judge-is-payer", "judge-is-payee"].includes(problem.code)) {
+      // Anyone who neither pays nor is paid in this deal can judge it.
+      const taken = [...payers.map((payer) => payer.name), ...stages.map((stage) => stage.payee)].filter(Boolean);
+      const free = state.people.map((person) => person.name).filter((name) => !taken.some((other) => same(other, name)));
+      const input = h("input", { placeholder: "Judge's name", maxlength: "40", "aria-label": "Judge's name", style: "width:150px" });
+      const set = (event) => {
+        event.preventDefault();
+        if (input.value.trim()) run(() => fixChecklist({ judge: { name: input.value.trim() } }, ABOUT_JUDGE));
+      };
+      return [
+        ...free.slice(0, 4).map((name) => fix(name, { judge: { name } }, ABOUT_JUDGE)),
+        h("form", { style: "display:flex;gap:6px", onsubmit: set }, input, h("button", { type: "submit" }, "Set")),
+      ];
+    }
+    return [];
   }
 
   function money(deal) {
