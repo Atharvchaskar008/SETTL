@@ -444,27 +444,27 @@ function renderActiveStageCard(stage, deal) {
   let btns = "";
   if (tryAll) {
     btns = `
-      <button type="button" class="btn btn-secondary btn-sm btn-stage-action" data-action="done" data-stage="${stage.id}">Submit Proof</button>
-      <button type="button" class="btn btn-primary btn-sm btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve</button>
-      <button type="button" class="btn btn-danger btn-sm btn-stage-action" data-action="dispute" data-stage="${stage.id}">Dispute</button>
+      <button type="button" class="action-clean-pill btn-stage-action" data-action="done" data-stage="${stage.id}">Submit Proof</button>
+      <button type="button" class="action-clean-pill primary btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve</button>
+      <button type="button" class="action-clean-pill danger btn-stage-action" data-action="dispute" data-stage="${stage.id}">Dispute</button>
     `;
   } else {
     if (stage.state === "Pending") {
       if (isPayee) {
-        btns = `<button type="button" class="btn btn-primary btn-sm btn-stage-action" data-action="done" data-stage="${stage.id}">Submit Proof / Done</button>`;
+        btns = `<button type="button" class="action-clean-pill primary btn-stage-action" data-action="done" data-stage="${stage.id}">Submit Proof</button>`;
       }
     } else if (stage.state === "Completed") {
       if (isPayer) {
         btns = `
-          <button type="button" class="btn btn-primary btn-sm btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve</button>
-          <button type="button" class="btn btn-danger btn-sm btn-stage-action" data-action="dispute" data-stage="${stage.id}">Dispute</button>
+          <button type="button" class="action-clean-pill primary btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve</button>
+          <button type="button" class="action-clean-pill danger btn-stage-action" data-action="dispute" data-stage="${stage.id}">Dispute</button>
         `;
       }
     } else if (stage.state === "Disputed") {
       if (isJudge) {
         btns = `
-          <button type="button" class="btn btn-primary btn-sm btn-stage-action" data-action="pay_payee" data-stage="${stage.id}">Pay Payee</button>
-          <button type="button" class="btn btn-secondary btn-sm btn-stage-action" data-action="refund_payers" data-stage="${stage.id}">Refund Client</button>
+          <button type="button" class="action-clean-pill primary btn-stage-action" data-action="pay_payee" data-stage="${stage.id}">Pay Payee</button>
+          <button type="button" class="action-clean-pill btn-stage-action" data-action="refund_payers" data-stage="${stage.id}">Refund Client</button>
         `;
       }
     }
@@ -503,7 +503,7 @@ function renderActionStackCards(deal) {
         tag: "Needs Approval",
         amount: formatRupees(s.amount),
         title: `Stage ${s.num}: ${s.title}`,
-        desc: `Completed by ${s.payee}. Client approval requested to release funds.`
+        desc: `Completed by ${s.payee}. Client approval requested.`
       });
     } else if (s.state === "Disputed") {
       items.push({
@@ -513,7 +513,7 @@ function renderActionStackCards(deal) {
         tag: "Disputed Milestone",
         amount: "Arbiter Review",
         title: `Stage ${s.num}: ${s.title}`,
-        desc: `Under review by Arbiter ${deal.judge}. Review evidence to release or refund.`
+        desc: `Under review by Arbiter ${deal.judge}.`
       });
     } else if (s.state === "Pending") {
       items.push({
@@ -523,32 +523,32 @@ function renderActionStackCards(deal) {
         tag: "In Progress",
         amount: formatRupees(s.amount),
         title: `Stage ${s.num}: ${s.title}`,
-        desc: `Assigned to ${s.payee}. Awaiting deliverable completion.`
+        desc: `Assigned to ${s.payee}. In progress.`
       });
     }
   });
 
   if (countBadge) countBadge.textContent = `${items.length} items`;
 
-  stackList.innerHTML = items.slice(0, 3).map((item, idx) => {
+  stackList.innerHTML = items.slice(0, 4).map((item, idx) => {
     const isFocused = item.stageId === state.activeStageId;
     return `
-      <div class="stacked-card card-depth-${idx + 1} ${isFocused ? 'active-stack' : ''}" data-stage-id="${item.stageId}">
-        <div class="stack-left-tab ${item.badgeClass}">
-          <span>${item.num}</span>
-        </div>
-        <div class="stack-card-body">
-          <div class="flex-between">
-            <h4>${escapeHtml(item.title)}</h4>
-            <span class="badge ${item.badgeClass === 'tab-amber' ? 'badge-disputed' : 'badge-completed'}">${item.amount}</span>
+      <div class="agreement-item-row ${isFocused ? 'active-elevated' : ''}" data-stage-id="${item.stageId}">
+        <div class="item-left flex-align-center gap-3">
+          <div class="item-icon-box ${isFocused ? 'active-box' : ''}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
           </div>
-          <p>${escapeHtml(item.desc)}</p>
+          <div>
+            <div class="item-name">${escapeHtml(item.title)}</div>
+            <div class="item-meta">${escapeHtml(item.amount)} • ${escapeHtml(item.tag)}</div>
+          </div>
         </div>
+        <span class="item-chevron">›</span>
       </div>
     `;
   }).join("");
 
-  stackList.querySelectorAll(".stacked-card").forEach(card => {
+  stackList.querySelectorAll(".agreement-item-row").forEach(card => {
     card.addEventListener("click", () => {
       const stageId = card.getAttribute("data-stage-id");
       state.activeStageId = stageId;
