@@ -122,6 +122,79 @@
 
     <section id="simulator" aria-labelledby="simulator-heading">
       <h2 id="simulator-heading">Simulator</h2>
+      <p>The deal: payer Riya has locked 30000 rupees. The payee is Aman. The judge is Meera. There are three stages of 10000 rupees each, all starting as Pending.</p>
+      
+      <div class="simulator-box">
+        <div class="actor-controls">
+          <label id="actor-selector-label"><strong>Acting person:</strong></label>
+          <div class="actor-buttons" role="group" aria-labelledby="actor-selector-label">
+            <button type="button" class="actor-btn active" data-actor="Payer" aria-pressed="true">Payer (Riya)</button>
+            <button type="button" class="actor-btn" data-actor="Payee" aria-pressed="false">Payee (Aman)</button>
+            <button type="button" class="actor-btn" data-actor="Judge" aria-pressed="false">Judge (Meera)</button>
+            <button type="button" class="actor-btn" data-actor="Stranger" aria-pressed="false">Stranger</button>
+          </div>
+          <div>Active: <span id="current-actor-label">Payer (Riya)</span></div>
+        </div>
+
+        <div class="stages-list">
+          <!-- Stage 1 -->
+          <div class="stage-card" id="stage-card-1">
+            <div class="stage-header">
+              <span class="stage-title">Stage 1 (10000 rupees)</span>
+              <span id="stage-1-status" class="stage-badge pending">Pending</span>
+            </div>
+            <div class="stage-actions">
+              <button type="button" data-action="mark-done" data-stage="1">Mark done</button>
+              <button type="button" data-action="approve" data-stage="1">Approve</button>
+              <button type="button" data-action="dispute" data-stage="1">Dispute</button>
+              <button type="button" data-action="judge-pay" data-stage="1">Judge: pay</button>
+              <button type="button" data-action="judge-refund" data-stage="1">Judge: refund</button>
+            </div>
+            <div id="stage-1-feedback" class="refusal-message" role="status"></div>
+          </div>
+
+          <!-- Stage 2 -->
+          <div class="stage-card" id="stage-card-2">
+            <div class="stage-header">
+              <span class="stage-title">Stage 2 (10000 rupees)</span>
+              <span id="stage-2-status" class="stage-badge pending">Pending</span>
+            </div>
+            <div class="stage-actions">
+              <button type="button" data-action="mark-done" data-stage="2">Mark done</button>
+              <button type="button" data-action="approve" data-stage="2">Approve</button>
+              <button type="button" data-action="dispute" data-stage="2">Dispute</button>
+              <button type="button" data-action="judge-pay" data-stage="2">Judge: pay</button>
+              <button type="button" data-action="judge-refund" data-stage="2">Judge: refund</button>
+            </div>
+            <div id="stage-2-feedback" class="refusal-message" role="status"></div>
+          </div>
+
+          <!-- Stage 3 -->
+          <div class="stage-card" id="stage-card-3">
+            <div class="stage-header">
+              <span class="stage-title">Stage 3 (10000 rupees)</span>
+              <span id="stage-3-status" class="stage-badge pending">Pending</span>
+            </div>
+            <div class="stage-actions">
+              <button type="button" data-action="mark-done" data-stage="3">Mark done</button>
+              <button type="button" data-action="approve" data-stage="3">Approve</button>
+              <button type="button" data-action="dispute" data-stage="3">Dispute</button>
+              <button type="button" data-action="judge-pay" data-stage="3">Judge: pay</button>
+              <button type="button" data-action="judge-refund" data-stage="3">Judge: refund</button>
+            </div>
+            <div id="stage-3-feedback" class="refusal-message" role="status"></div>
+          </div>
+        </div>
+
+        <div class="withdraw-section">
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <button type="button" id="withdraw-btn" class="primary">Withdraw for acting person</button>
+            <span>Available for active person: <strong id="withdrawable-amount">0 rupees</strong></span>
+            <button type="button" id="reset-btn">Reset</button>
+          </div>
+          <div id="withdraw-feedback" class="refusal-message" role="status"></div>
+        </div>
+      </div>
     </section>
 
     <section id="limits" aria-labelledby="limits-heading">
