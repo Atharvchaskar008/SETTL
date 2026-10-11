@@ -30,6 +30,10 @@
   var withdrawFeedback = '';
   var logs = [];
 
+  /**
+   * Calculates the locked balance from pending, completed, and disputed stages.
+   * @returns {number} Locked amount in rupees.
+   */
   function getLockedBalance() {
     var count = 0;
     for (var i = 0; i < stages.length; i++) {
@@ -40,10 +44,21 @@
     return count * STAGE_AMOUNT;
   }
 
+  /**
+   * Calculates total funds released or refunded waiting for withdrawal.
+   * @returns {number} Withdrawable amount across all actors in rupees.
+   */
   function getWaitingBalance() {
     return withdrawable.Payer + withdrawable.Payee + withdrawable.Judge + withdrawable.Stranger;
   }
 
+  /**
+   * Records an action entry to the chronological simulator event log.
+   * @param {string} actor - Internal actor identifier.
+   * @param {string} actionText - Description of the attempted action.
+   * @param {boolean} accepted - True if valid and executed, false if refused.
+   * @param {string} reason - Acceptance message or refusal explanation.
+   */
   function addLog(actor, actionText, accepted, reason) {
     logs.push({
       actor: actorDisplayNames[actor] || actor,
@@ -60,6 +75,10 @@
     withdrawFeedback = '';
   }
 
+  /**
+   * Sets the active acting role and refreshes simulator UI.
+   * @param {string} actor - One of 'Payer', 'Payee', 'Judge', or 'Stranger'.
+   */
   function setActor(actor) {
     currentActor = actor;
     clearFeedbacks();
