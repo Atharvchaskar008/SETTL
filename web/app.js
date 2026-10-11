@@ -776,6 +776,7 @@ function setupDashboardInteractions() {
     openUploadProofModal();
   });
 
+  // Hero Natural Language Input, Templates & Copy Link
   const heroAiInput = document.getElementById("hero-ai-input");
   const heroAiSubmit = document.getElementById("btn-hero-ai-submit");
 
@@ -786,13 +787,87 @@ function setupDashboardInteractions() {
       handleHeroAiInput();
     }
   });
+
+  // Live filter agreements in top-right panel as user types
+  heroAiInput?.addEventListener("input", (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    filterAgreementsListByQuery(query);
+  });
+
+  // Quick Suggestion Template Chips
+  document.querySelectorAll(".nl-template-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const templateKey = chip.getAttribute("data-template");
+      if (heroAiInput && SAMPLES[templateKey]) {
+        heroAiInput.value = SAMPLES[templateKey];
+        heroAiInput.focus();
+      }
+    });
+  });
+
+  // Copy Link Button
+  document.getElementById("btn-copy-agreement-link")?.addEventListener("click", () => {
+    const url = `${window.location.origin}${window.location.pathname}?deal=${state.currentDealId || 'deal-1'}`;
+    navigator.clipboard?.writeText(url).then(() => {
+      showAiToast("Agreement link copied to clipboard!");
+    }).catch(() => {
+      showAiToast(`Agreement ID: ${state.currentDealId}`);
+    });
+  });
 }
 
-function handleHeroAiInput() {
+function filterAgreementsListByQuery(query) {
+  const cards = document.querySelectorAll(".workspace-agreement-card");
+  if (!cards.length) return;
+  cards.forEach(card => {
+    if (!query) {
+      card.style.display = "";
+      return;
+    }
+    const title = card.querySelector(".agreement-card-name")?.textContent.toLowerCase() || "";
+    const party = card.querySelector(".card-party-caption")?.textContent.toLowerCase() || "";
+    const matches = title.includes(query) || party.includes(query);
+    card.style.display = matches ? "" : "none";
+  });
+}
+
+async function handleHeroAiInput() {
   const input = document.getElementById("hero-ai-input");
   if (!input) return;
-  const val = input.value.trim().toLowerCase();
-  if (!val) return;
+  const rawText = input.value.trim();
+  if (!rawText) return;
+
+  const lower = rawText.toLowerCase();
+
+  // If text looks like a deal description or user pressed "Create Deal"
+  const isDealDescription = rawText.length > 25 || 
+    lower.includes("pay") || lower.includes("pays") || 
+    lower.includes("rs") || lower.includes("₹") || 
+    lower.includes("milestone") || lower.includes("stage");
+
+  if (isDealDescription) {
+    showAiToast("AI engine analyzing agreement text & proposing milestones...");
+    const res = await api("/deals/draft", {
+      method: "POST",
+      body: JSON.stringify({ text: rawText, person: state.actingPerson })
+    });
+
+    if (res.ok && res.data.deal) {
+      input.value = "";
+      state.wizardDeal = res.data.deal;
+      openWizardModal();
+      setWizardStep(2);
+      renderReviewStep();
+      showAiToast(`AI proposal ready: ${res.data.deal.stages.length} milestones suggested. Human review & confirmation required.`);
+      return;
+    } else {
+      // Fallback: populate textarea in describe step
+      openWizardModal();
+      const textarea = document.getElementById("describe-textarea");
+      if (textarea) textarea.value = rawText;
+      return;
+    }
+  }
 
   const deal = state.currentDeal;
   input.value = "";
@@ -800,30 +875,28 @@ function handleHeroAiInput() {
 
   const activeStg = deal.stages.find(s => s.id === state.activeStageId) || deal.stages[0];
 
-  if (val.includes("approve")) {
+  if (lower.includes("approve")) {
     const btn = document.querySelector(`.btn-stage-action[data-action="approve"]`);
     if (btn) btn.click();
-    showAiToast(`AI Command: Requested approval for Stage ${activeStg.num} as ${state.actingPerson}.`);
-  } else if (val.includes("done") || val.includes("proof") || val.includes("submit")) {
+    showAiToast(`Requested milestone approval as ${state.actingPerson}.`);
+  } else if (lower.includes("done") || lower.includes("proof") || lower.includes("submit")) {
     const btn = document.querySelector(`.btn-stage-action[data-action="done"]`);
     if (btn) btn.click();
-    showAiToast(`AI Command: Submitted milestone delivery proof for Stage ${activeStg.num} as ${state.actingPerson}.`);
-  } else if (val.includes("dispute")) {
+    showAiToast(`Submitted deliverable proof as ${state.actingPerson}.`);
+  } else if (lower.includes("dispute")) {
     const btn = document.querySelector(`.btn-stage-action[data-action="dispute"]`);
     if (btn) btn.click();
-    showAiToast(`AI Command: Raised dispute for Stage ${activeStg.num} as ${state.actingPerson}.`);
-  } else if (val.includes("refund")) {
+    showAiToast(`Dispute initiated for milestone Stage ${activeStg?.num || 1}.`);
+  } else if (lower.includes("refund")) {
     const btn = document.querySelector(`.btn-stage-action[data-action="refund_payers"]`);
     if (btn) btn.click();
-    showAiToast(`Arbiter Ruling: Refund requested for Stage ${activeStg.num}.`);
-  } else if (val.includes("pay") || val.includes("release")) {
+    showAiToast(`Arbiter refund ruling requested.`);
+  } else if (lower.includes("release") || lower.includes("pay")) {
     const btn = document.querySelector(`.btn-stage-action[data-action="pay_payee"]`);
     if (btn) btn.click();
-    showAiToast(`Arbiter Ruling: Payment release requested for Stage ${activeStg.num}.`);
-  } else if (val.includes("new deal") || val.includes("builder") || val.includes("create")) {
-    openWizardModal();
+    showAiToast(`Arbiter payment release requested.`);
   } else {
-    showAiToast(`AI Agreement Assistant: Parsed input for Stage ${activeStg.num}. Verification conditions: "${activeStg.condition}".`);
+    showAiToast(`Search / Command recognized for current agreement.`);
   }
 }
 
@@ -832,10 +905,13 @@ function showAiToast(message) {
   if (!slot) return;
   slot.innerHTML = `
     <div class="hero-ai-toast">
-      <span><strong>AI Assistant:</strong> ${message}</span>
+      <span><strong>Settl Workspace:</strong> ${escapeHtml(message)}</span>
       <button type="button" class="btn-text-sm" onclick="this.parentElement.remove()">✕</button>
     </div>
   `;
+  setTimeout(() => {
+    slot.innerHTML = "";
+  }, 5000);
 }
 
 // ==========================================================================
