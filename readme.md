@@ -340,7 +340,17 @@ A deal has been run from start to finish on the Sepolia test network, with three
 | Source, verified as an exact match | https://repo.sourcify.dev/11155111/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F |
 | What was done | The organiser's wallet created the vault, the payer deposited, the payee marked the stage done, the payer approved, and the payee withdrew. Nothing is left in the vault and the settlement adds up |
 
-Two things this run taught us:
+A second deal, with a stake and a dispute, was then run on Sepolia by script, with three test wallets signing through the same server routes the dashboard uses.
+
+| | |
+|---|---|
+| Vault | `0x3890cC72EA90e3775a56Fcc8e7B07A32E2DA30c9` |
+| On the explorer | https://sepolia.etherscan.io/address/0x3890cC72EA90e3775a56Fcc8e7B07A32E2DA30c9 |
+| What was done | The payer deposited ₹20,000 and the payee staked ₹2,000. Stage 1 was approved and paid. Stage 2 was disputed and the judge refunded it. Both withdrew, the stake came back, nothing is left in the vault and the settlement adds up |
+| Refused on the way | The payee approving their own stage, the judge ruling with no dispute, and the payer ruling on their own dispute |
+| Cost | 0.000164 test ETH for all eleven transactions, at a tip of 0.01 gwei |
+
+Two things these runs taught us:
 
 - **A wallet does not always send a transaction straight to the vault.** MetaMask's optional "added protection" routes it through a contract of its own. The server now takes who did what from the vault's own events, so it records a step however it arrived, including steps taken on the contract without the server at all.
 - **Creating a vault is expensive on Sepolia:** about 13.8 million gas, several times what the local chain charges. With MetaMask's default fee that was about 0.02 test ETH. The dashboard now asks for a smaller fee.
@@ -486,7 +496,7 @@ With no key, the offline reader is used and everything else works the same.
 | Wallet sign-in, people added by address, signed agreements, wallet-created vaults, wallet-sent transactions | Done. 37 tests pass, using real keys through `/rpc` on the local chain |
 | End-to-end demo (`npm run demo`) | Done before the latest server changes. Not re-run since |
 | Dashboard (`/`) | Done. Run through the real page in a headless browser: a plain deal with a dispute, a deal with a stake where the payee leaves, the agreement tab, the attack lab, and the whole wallet path with three keys. Also used by hand with MetaMask on Sepolia |
-| Public test network (`npm run testnet`) | One plain deal run end to end on Sepolia, and the vault's source verified. The stake, dispute, cancel and leave paths have not been run there |
+| Public test network (`npm run testnet`) | Two deals run end to end on Sepolia: a plain one by hand with MetaMask, and one with a stake and a dispute by script. The first vault's source is verified. The cancel and leave paths have not been run there |
 | Attack lab on a public network | Written. Not yet run |
 | Wallet console page (`/wallet`) | Written before the organiser's wallet began creating the vault. Its Lock button has not been updated for that; use the dashboard |
 

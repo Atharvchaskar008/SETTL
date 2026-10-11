@@ -284,7 +284,7 @@
     if (!state.chain.local) {
       // A wallet's default tip is far more than a quiet test network needs, and creating a
       // vault takes a lot of gas there. A small tip keeps the scarce test coin for the deal itself.
-      const tip = ethers.parseUnits("0.1", "gwei");
+      const tip = ethers.parseUnits("0.02", "gwei");
       const block = await signer.provider.getBlock("latest");
       request.maxPriorityFeePerGas = tip;
       request.maxFeePerGas = ((block && block.baseFeePerGas) || 0n) * 2n + tip;
