@@ -459,56 +459,103 @@
         </section>
 
         <!-- -----------------------------------------------------------------
-             BOTTOM-MIDDLE CARD: Smart Arbiter (Matching Pendant Lamp Card)
+             BOTTOM-MIDDLE CARD: Workspace Collaboration & Members Panel
              ----------------------------------------------------------------- -->
-        <section class="bento-card bento-arbiter-lamp" id="card-hub-overview">
-          <!-- Top Row: Dropdown Title + Circle Button -->
+        <section class="bento-card bento-workspace-collab" id="card-hub-overview">
+          <!-- Card Header -->
           <div class="card-header-clean flex-between">
-            <div class="dropdown-header-group">
-              <div class="dropdown-title-row">
-                <h3 class="dropdown-title">Smart Arbiter</h3>
-                <span class="dropdown-chevron-sm">▾</span>
+            <div>
+              <h2 class="card-clean-title">Workspace Members</h2>
+              <p class="card-clean-subtitle">Multi-member roles, communication & activity stream</p>
+            </div>
+            <button type="button" class="btn-clean-action-sm" id="btn-invite-member" title="Invite a new member to this agreement workspace">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Invite Member</span>
+            </button>
+          </div>
+
+          <!-- Members Avatar Grid Row -->
+          <div class="workspace-members-row" id="workspace-members-roster">
+            <!-- Member 1: Riya (Client) -->
+            <div class="workspace-member-card">
+              <div class="member-avatar-wrap">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&h=60&fit=crop&crop=face" alt="Riya" />
+                <span class="role-dot client"></span>
               </div>
-              <p class="dropdown-sub-caption">1 device(s) • Meera (Arbiter)</p>
+              <div class="member-info">
+                <span class="member-name">Riya</span>
+                <span class="member-role-badge role-client">Client</span>
+              </div>
             </div>
-            <div class="circle-clean-indicator" title="Arbiter Active">
-              <span class="indicator-inner-dot"></span>
+
+            <!-- Member 2: Aman (Provider) -->
+            <div class="workspace-member-card">
+              <div class="member-avatar-wrap">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face" alt="Aman" />
+                <span class="role-dot provider"></span>
+              </div>
+              <div class="member-info">
+                <span class="member-name">Aman</span>
+                <span class="member-role-badge role-provider">Provider</span>
+              </div>
+            </div>
+
+            <!-- Member 3: Meera (Arbiter) -->
+            <div class="workspace-member-card">
+              <div class="member-avatar-wrap">
+                <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=60&h=60&fit=crop&crop=face" alt="Meera" />
+                <span class="role-dot arbiter"></span>
+              </div>
+              <div class="member-info">
+                <span class="member-name">Meera</span>
+                <span class="member-role-badge role-arbiter">Arbiter</span>
+              </div>
+            </div>
+
+            <!-- Member 4: Kabir (Member) -->
+            <div class="workspace-member-card">
+              <div class="member-avatar-wrap">
+                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60&h=60&fit=crop&crop=face" alt="Kabir" />
+                <span class="role-dot member"></span>
+              </div>
+              <div class="member-info">
+                <span class="member-name">Kabir</span>
+                <span class="member-role-badge role-member">Member</span>
+              </div>
             </div>
           </div>
 
-          <!-- Center Visual: Glowing Radiant Lamp / AI Arbiter Sphere -->
-          <div class="lamp-graphic-container">
-            <div class="lamp-suspension-cord"></div>
-            <div class="lamp-socket"></div>
-            <div class="radiant-light-bulb" id="arbiter-orb-glow">
-              <div class="bulb-highlight"></div>
+          <!-- Quick Message / Discussion Input -->
+          <div class="workspace-comment-box">
+            <input type="text" class="workspace-comment-input" id="workspace-comment-input" placeholder="Leave a project note, proof URL, or comment..." />
+            <button type="button" class="btn-comment-send" id="btn-submit-comment">Post</button>
+          </div>
+
+          <!-- Chronological Activity Feed -->
+          <div class="workspace-activity-feed" id="workspace-activity-feed-list">
+            <div class="activity-feed-item">
+              <span class="activity-dot upload"></span>
+              <div class="activity-content">
+                <div class="activity-line"><strong>Aman</strong> submitted proof for <em>Stage 1 (design_tokens.fig)</em></div>
+                <span class="activity-time">25 mins ago</span>
+              </div>
             </div>
-            <div class="lamp-ambient-glow"></div>
-          </div>
-
-          <!-- Device Name + Toggle Switch -->
-          <div class="device-toggle-row flex-between">
-            <span class="device-caption">Smart Lamp</span>
-            <label class="clean-toggle-switch">
-              <input type="checkbox" checked id="toggle-smart-lamp" />
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-            </label>
-          </div>
-
-          <!-- Bottom Slider Capsule: Brightness / Decision Slider -->
-          <div class="capsule-slider-track">
-            <span class="slider-sun-icon">☼</span>
-            <div class="slider-fill-bar">
-              <div class="slider-handle"></div>
+            <div class="activity-feed-item">
+              <span class="activity-dot deposit"></span>
+              <div class="activity-content">
+                <div class="activity-line"><strong>Riya</strong> deposited ₹30,000 into escrow vault</div>
+                <span class="activity-time">2 hours ago</span>
+              </div>
             </div>
-            <span class="slider-percentage">70%</span>
+            <div class="activity-feed-item">
+              <span class="activity-dot agree"></span>
+              <div class="activity-content">
+                <div class="activity-line">Agreement signed & locked by all participants</div>
+                <span class="activity-time">Yesterday</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Quick Arbiter Decision Bar -->
-          <div class="arbiter-quick-actions flex-between" id="action-matrix-container">
-            <button type="button" class="btn-arbiter-action btn-stage-action" data-action="pay_payee" data-stage="stg-2">Pay Payee</button>
-            <button type="button" class="btn-arbiter-action btn-stage-action" data-action="refund_payers" data-stage="stg-2">Refund</button>
-          </div>
           <div class="refusal-slot" id="matrix-refusal-slot"></div>
         </section>
 
