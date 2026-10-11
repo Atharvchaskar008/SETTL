@@ -43,6 +43,7 @@
     editing: null, // the deal text while it is being rewritten
     allHistory: false,
     file: null, // a document attached to the next deal: { name, text } or { name, type, data }
+    info: false, // whether the card with everything about the open deal is showing
     tab: null, // the part of the workspace on show; null picks the one that fits the deal's status
     menu: false,
     profileOpen: false,
@@ -539,7 +540,7 @@
 
   function draw(force) {
     const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.closest("#deal, #who, #profile-modal");
-    const picture = JSON.stringify([state.me, state.balance, state.people, state.deals, state.deal, state.history, state.summary, state.lab, state.editing !== null, state.allHistory, state.menu, state.offline, state.tab, state.profileOpen]);
+    const picture = JSON.stringify([state.me, state.balance, state.people, state.deals, state.deal, state.history, state.summary, state.lab, state.editing !== null, state.allHistory, state.menu, state.offline, state.tab, state.profileOpen, state.info]);
     if (!force && (typing || picture === state.drawn)) return;
     state.drawn = picture;
     drawTop();
@@ -864,7 +865,8 @@
         h("span", { class: "sub" }, status.word, deal.status === "locked" ? ` · ${deal.stagesSettled}/${deal.stageCount}` : "")
       );
     });
-    $("deals").replaceChildren(label("Workspaces"), ...(rows.length ? rows : [h("p", { class: "empty" }, "None yet")]));
+    const card = state.info && state.deal && !state.lab ? [dealCard(state.deal)] : [];
+    $("deals").replaceChildren(label("Workspaces"), ...(rows.length ? rows : [h("p", { class: "empty" }, "None yet")]), ...card);
   }
 
   // One deal, top to bottom: what it is, where it stands, what you can do, who is in it, the stages, the words, the record.
@@ -893,6 +895,7 @@
             ? h("a", { class: "tag mono", href: `${explorer}/address/${deal.vaultAddress}`, target: "_blank", rel: "noreferrer" }, short(deal.vaultAddress))
             : h("span", { class: "tag mono", title: deal.vaultAddress }, short(deal.vaultAddress))),
         tag(status.word, status.tone),
+        h("button", { type: "button", class: "quiet", onclick: toggleInfo }, state.info ? "Hide info" : "Deal info"),
         h("button", { type: "button", class: "quiet", onclick: copyLink }, "Copy link")
       )
     );
@@ -1034,6 +1037,52 @@
         deal.agreementHash && h("span", { class: "sub mono", title: deal.agreementHash }, `Fingerprint ${short(deal.agreementHash)}`)
       ),
     ];
+  }
+
+  function toggleInfo() {
+    state.info = !state.info;
+    draw(true);
+  }
+
+  /** Everything the server holds about the open deal, on one card under the list of workspaces. */
+  function dealCard(deal) {
+    const list = deal.checklist;
+    const locked = deal.status === "locked";
+    const row = (name, value) => h("div", { class: "deal-card__row" }, h("span", {}, name), h("b", {}, String(value)));
+    const heading = (name) => h("span", { class: "deal-card__label" }, name);
+    const roleOf = (person) =>
+      [
+        person.roles.includes("payer") && `pays ${rupees(person.share)}`,
+        person.roles.includes("payee") && `earns ${rupees(person.earns)}`,
+        person.roles.includes("judge") && "judge",
+      ]
+        .filter(Boolean)
+        .join(", ") || "member";
+    const stages = locked ? deal.stages : list.stages;
+    return h(
+      "aside",
+      { class: "deal-card", "aria-label": "Deal info" },
+      h("span", { class: "deal-card__title" }, "Deal info"),
+      h("p", { class: "deal-card__content" }, deal.title || "Untitled deal"),
+      row("Status", statusOf(deal).word),
+      row("Total", rupees(list.total)),
+      row("Stake", list.stake ? rupees(list.stake) : "None"),
+      row("Organiser", deal.organiser),
+      row("Judge", list.judge.name || "Not set"),
+      row("Read by", deal.readBy === "model" ? `AI${deal.model ? ` (${deal.model})` : ""}` : "Offline reader"),
+      row("Network", state.chain.network),
+      row("Vault", deal.vaultAddress ? short(deal.vaultAddress) : "Not created yet"),
+      row("Fingerprint", deal.agreementHash ? short(deal.agreementHash) : "Not confirmed yet"),
+      row("Document", deal.document ? deal.document.name : "None"),
+      ...(locked && deal.money
+        ? [heading("Escrow"), row("Locked", rupees(deal.money.locked)), row("To withdraw", rupees(deal.money.waitingToBeWithdrawn)), row("Paid out", rupees(deal.money.paidOut))]
+        : []),
+      heading("People"),
+      ...deal.people.map((person) => row(person.name, roleOf(person))),
+      heading("Stages"),
+      ...stages.map((stage, index) => row(`${index + 1}. ${stage.title || "Stage"}`, `${rupees(stage.amount)}${stage.state ? ` · ${STAGE_WORDS[stage.state]}` : ""}`)),
+      h("button", { type: "button", class: "deal-card__button", onclick: toggleInfo }, "Close")
+    );
   }
 
   function copyLink() {
