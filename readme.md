@@ -6,6 +6,29 @@ Built for VORTEXA 3.0, problem **B-03 MilestoneVault: Adversarial Smart-Contract
 
 > All money in this project is test money. Nothing here moves real money or connects to a real payment system, and the server refuses to start on a network where money is real.
 
+## Live
+
+| | |
+|---|---|
+| Smart contract on Sepolia | [`0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F`](https://sepolia.etherscan.io/address/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F) |
+| Its source, verified as an exact match | [Read it on Sourcify](https://repo.sourcify.dev/11155111/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F) |
+| A second vault, with a stake and a dispute | [`0x3890cC72EA90e3775a56Fcc8e7B07A32E2DA30c9`](https://sepolia.etherscan.io/address/0x3890cC72EA90e3775a56Fcc8e7B07A32E2DA30c9) |
+| Contract source in this repository | [contracts/MilestoneVault.sol](contracts/MilestoneVault.sol) |
+| Network | Sepolia test network, chain ID 11155111 |
+
+Every deal gets its own copy of the same contract, so these are two of them. What each one did is described under [Live on Sepolia](#live-on-sepolia).
+
+## At a glance
+
+| | |
+|---|---|
+| **Input** | A deal typed in plain words, or attached as a text file, a PDF or a picture |
+| **Output** | A vault contract holding the money, which pays each person only when their stage is approved |
+| **Who signs** | Each person, with their own wallet. On a public network the server holds no key at all |
+| **What the AI may do** | Propose a checklist. Every stage must quote the text, a person must confirm, and everyone must sign |
+| **What stops cheating** | The contract. A stage cannot be paid twice, steps cannot be skipped, only the judge can settle a dispute, and a re-entrant withdrawal fails |
+| **Evidence** | 81 contract tests, 103 server tests, four attacks run live, and two deals settled on Sepolia |
+
 ## Contents
 
 - [The problem](#the-problem)
@@ -13,12 +36,14 @@ Built for VORTEXA 3.0, problem **B-03 MilestoneVault: Adversarial Smart-Contract
 - [Who can use it](#who-can-use-it)
 - [Architecture](#architecture)
 - [The vault contract](#the-vault-contract)
+- [Security model](#security-model)
 - [The deal checker (the AI part)](#the-deal-checker-the-ai-part)
 - [The server](#the-server)
 - [Wallets and real users](#wallets-and-real-users)
 - [Project layout](#project-layout)
 - [Tech stack](#tech-stack)
 - [How to run it](#how-to-run-it)
+- [Deployment](#deployment)
 - [Build status](#build-status)
 - [Limits](#limits)
 - [Roadmap](#roadmap)
@@ -68,19 +93,46 @@ A sample of each is in [server/fixtures/](server/fixtures/).
 ### Components
 
 ```mermaid
-flowchart LR
-    PAGE["Dashboard<br/>(app/)"] -->|"HTTP + JSON"| API["Express server"]
-    API --> CHECKER["Deal checker"]
-    API --> STORE["JSON store<br/>people, deals, history"]
-    API -->|"ethers.js"| CHAIN["Chain<br/>local Hardhat network,<br/>or a public test network"]
-    PAGE -.->|"asks to sign"| WALLET["A person's wallet"]
-    WALLET -->|"signed transactions"| CHAIN
-    CHAIN --> VAULT["MilestoneVault<br/>one per deal"]
-    CHECKER -.->|"optional"| MODEL["Language model API"]
+flowchart TB
+    subgraph BROWSER["In the browser"]
+        LAND["Landing page<br/>React, built with Vite"]
+        DASH["Dashboard<br/>plain HTML, CSS and JavaScript"]
+        WALLET["The person's wallet<br/>MetaMask"]
+    end
+
+    subgraph SERVER["Settl server: Node.js and Express"]
+        API["Routes<br/>deals, people, sign-in, attack lab"]
+        CHECKER["Deal checker<br/>model reader, offline reader, validation"]
+        STORE["JSON store<br/>people, deals, history"]
+        CHAINLIB["Chain layer<br/>ethers.js"]
+    end
+
+    MODEL["Language model API<br/>optional"]
+
+    subgraph CHAIN["Chain: local Hardhat network, or Sepolia"]
+        VAULT["MilestoneVault<br/>one contract per deal"]
+    end
+
+    LAND -->|"opens"| DASH
+    DASH -->|"HTTP and JSON"| API
+    DASH -.->|"asks to sign"| WALLET
+    WALLET -->|"signed transactions"| VAULT
+    API --> CHECKER
+    API --> STORE
+    API --> CHAINLIB
+    CHECKER -.->|"text in, checklist out"| MODEL
+    CHAINLIB -->|"reads state and events"| VAULT
 ```
+
+Three boundaries in this picture carry the design:
+
+- **The model touches only text.** It sits behind the deal checker and returns a proposal. It has no route to the chain.
+- **The wallet, not the server, sends a person's transactions.** The server prepares a transaction and checks the result. On a public network it holds no key.
+- **The vault is the only thing that holds money or decides who may move it.** The server reads it; it cannot overrule it.
 
 | Component | Job | Where |
 |---|---|---|
+| Landing page | Explains the product and opens the dashboard | [landing/](landing/) |
 | Vault contract | Holds the money and enforces every rule about who may do what, and when | [contracts/MilestoneVault.sol](contracts/MilestoneVault.sol) |
 | Deal checker | Reads deal text into a proposed checklist, with a model path and an offline path | [server/src/checker/](server/src/checker/) |
 | Server | Stores deals and people, runs the agree step, creates a vault from a confirmed checklist or prepares that transaction for the organiser's wallet, and forwards actions to the vault | [server/src/](server/src/) |
@@ -104,6 +156,39 @@ flowchart TD
     I --> J["Payers deposit<br/>vault becomes Active"]
     J --> K["Each action is sent to the vault<br/>as the person who asked"]
 ```
+
+### One deal, from start to finish
+
+```mermaid
+sequenceDiagram
+    actor O as Organiser
+    actor P as Payers, payees, judge
+    participant D as Dashboard
+    participant S as Server
+    participant C as Deal checker
+    participant V as Vault on the chain
+
+    O->>D: Types the deal, or attaches a document
+    D->>S: POST /deals/draft
+    S->>C: Read this text
+    C-->>S: Proposed checklist, each stage quoting the text
+    S-->>D: Draft, with any problems listed
+    O->>S: Confirm (refused while a problem is open)
+    O->>S: Agree, by wallet signature
+    P->>S: Agree, by wallet signature
+    S-->>O: Creation transaction, built from the agreed terms
+    O->>V: Create the vault from their own wallet
+    S->>V: Check it is exactly that transaction, then lock the deal
+    P->>V: Deposit, and stake if the deal has one
+    Note over V: Active
+    P->>V: Payee marks a stage done
+    P->>V: Payers approve, or one disputes
+    P->>V: Judge pays or refunds a disputed stage
+    P->>V: Withdraw what the vault owes them
+    S->>V: Read state and events for the screen and the history
+```
+
+Before a wallet is opened for any step, the server asks the chain whether the contract would accept it. A refusal is shown in plain words and recorded, and no transaction is sent.
 
 Three design decisions matter most here:
 
@@ -172,6 +257,27 @@ The stake is optional and set per deal; zero switches it off. It gives a payee a
 ### Balance check under random actions
 
 [test/reconcile.test.js](test/reconcile.test.js) sends hundreds of random actions at a vault, from the right people and the wrong ones, and checks the books after every single step. The sequence is seeded, so any failure can be replayed.
+
+## Security model
+
+What could go wrong, what prevents it, and where that is proven.
+
+| Threat | What prevents it | Proven by |
+|---|---|---|
+| A stage is paid twice | A stage moves one way through its states and can be released once. Money is credited, then withdrawn by the person owed it | [test/attacks.test.js](test/attacks.test.js); attack lab "Second release" |
+| Someone other than the judge settles a dispute | The contract checks the caller. The payer, the payee and strangers are refused | [test/attacks.test.js](test/attacks.test.js); attack lab "Unauthorised refund"; refused live on Sepolia |
+| Steps are skipped or repeated | Every action checks the deal's phase and the stage's state first | [test/attacks.test.js](test/attacks.test.js); attack lab "Out of order" |
+| A contract withdraws again before the first payment is recorded | The credit is set to zero before any money is sent, and `withdraw` is guarded against re-entry | [test/reentrancy.test.js](test/reentrancy.test.js); the same attacker drains the deliberately weak copy |
+| The judge takes the money, or is one of the parties | The judge can only choose "pay the payee" or "refund the payers". A vault whose judge is also a payer or payee cannot be created | [test/setup.test.js](test/setup.test.js) |
+| The money stops adding up | `reconciles()` compares the vault's balance with what it still owes and holds | Checked after every step in [test/reconcile.test.js](test/reconcile.test.js), under random actions |
+| The AI invents or misreads a term | A stage that does not quote the deal text is dropped. A person must confirm, and every member must sign | [server/test/checker.test.js](server/test/checker.test.js) |
+| The terms, the accounts or the document change after signing | The fingerprint each person signs covers the text, the checklist, every member's address and any attached file. Any edit clears the signatures. The vault stores the fingerprint | [server/test/api.test.js](server/test/api.test.js), [server/test/wallet.test.js](server/test/wallet.test.js) |
+| A vault is created with different terms | The creation transaction must match, byte for byte, the one built from the agreed terms, and must come from the organiser | [server/test/wallet.test.js](server/test/wallet.test.js) |
+| Someone acts as another person | A wallet person is known only by a session opened with their signature. Naming them in a request is refused | [server/test/wallet.test.js](server/test/wallet.test.js) |
+| The server's record disagrees with the chain | Who did what is read from the vault's own events, and the screen reads the vault's state | [server/test/wallet.test.js](server/test/wallet.test.js); found and fixed during the first Sepolia run |
+| Real money is used by mistake | The server starts only on a known test network | [server/src/chain.js](server/src/chain.js) |
+
+What is not covered is listed under [Limits](#limits).
 
 ## The deal checker (the AI part)
 
@@ -395,16 +501,19 @@ server/
   src/deals.js                deal routes
   src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
-  fixtures/                   five sample deals
+  fixtures/                   five sample deals, and one as a PDF
   test/                       checker tests, API tests and wallet tests
-app/                          the dashboard, served at /
+app/                          the dashboard, served at /app/
   index.html, settl.css, settl.js
+landing/                      the landing page (React), built into dist/ and served at /
+site/                         a page that explains the project, served at /site
 wallet/index.html             the wallet console, served at /wallet
 scripts/demo.js               end-to-end run of five deals and four attacks
 scripts/score.js              scores the deal checker against the sample deals
 samples/                      more sample deals with their expected checklists
 SETUP.md                      wallet set-up for people new to MetaMask
-hardhat.config.js, package.json, .env.example
+render.yaml                   deployment to Render
+hardhat.config.js, vite.config.mjs, package.json, .env.example
 ```
 
 ## Tech stack
@@ -414,7 +523,10 @@ hardhat.config.js, package.json, .env.example
 | Contract | Solidity 0.8.28, OpenZeppelin `ReentrancyGuard` |
 | Local chain and contract tests | Hardhat, ethers.js, Mocha and Chai |
 | Server | Node.js, Express |
-| Deal checker | Anthropic SDK for the model path, plain JavaScript for the offline path |
+| Dashboard | Plain HTML, CSS and JavaScript, with ethers.js for the wallet. No build step |
+| Landing page | React, Vite, styled-components |
+| Deal checker | Claude through the Anthropic SDK, or Gemini over REST, for the model path. Plain JavaScript for the offline path |
+| Hosting | Render, from [render.yaml](render.yaml) |
 | Server tests | Node's built-in test runner |
 | Storage | One JSON file, rewritten on each start |
 
@@ -438,7 +550,9 @@ npm start
 | `npm run test:server` | Server tests only |
 | `npm run demo` | Runs five deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
 | `npm run score` | Scores the deal checker against the sample deals in `samples/deals/` |
-| `npm start` | Starts the server and the dashboard at `http://localhost:3000`, on the local chain |
+| `npm start` | Starts the server on the local chain. The dashboard is at `http://localhost:3000/app/` |
+| `npm run landing` | Builds the landing page, then starts the server. The landing page is at `http://localhost:3000/` and its buttons open the dashboard |
+| `npm run dev` | The landing page alone, with live reload, for working on it |
 | `npm run testnet` | The same, on the Sepolia test network. Needs a wallet with test ETH; see [SETUP.md](SETUP.md) |
 
 ### What the demo shows
@@ -483,6 +597,31 @@ Copy `.env.example` to `.env` and put your values in `.env`. Every value is opti
 | `RPC_PORT` | Second port where wallets can reach the local chain. Defaults to 8545 |
 
 With no key, the offline reader is used and everything else works the same.
+
+## Deployment
+
+Settl deploys to [Render](https://render.com) as one web service, described in [render.yaml](render.yaml). On Render choose New, then Blueprint, pick this repository, and paste the model key when asked.
+
+| Setting | Value |
+|---|---|
+| Build | `npm install --include=dev && npx hardhat compile && npx vite build` |
+| Start | `node server/src/index.js --testnet` |
+| Network | Sepolia. Visitors connect MetaMask and sign with their own wallet |
+| Secrets | `GEMINI_API_KEY`, set in Render's dashboard. No key is stored in this repository |
+| Health check | `/health` |
+
+| Address on the deployed site | What it serves |
+|---|---|
+| `/` | The landing page |
+| `/app/` | The dashboard |
+| `/site/` | The page that explains the project |
+
+What to know about the free plan:
+
+- **It sleeps when idle** and takes up to a minute to wake.
+- **The list of workspaces is kept in a file that does not survive a restart.** The vaults stay on Sepolia; only the server's list is lost. A database is the fix and is not built yet.
+- **Every push to `main` redeploys the service.**
+- **To change the model key,** edit it under Environment in Render. The service restarts with the new key.
 
 ## Build status
 
