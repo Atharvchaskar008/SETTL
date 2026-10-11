@@ -1,18 +1,26 @@
 :root {
-  --bg-color: #f8fafc;
+  /* Palette from swatches */
+  --palette-deep-navy: #00002a;
+  --palette-navy: #1a3f75;
+  --palette-mid-blue: #3d6b94;
+  --palette-soft-blue: #8fb2c8;
+  --palette-ice-blue: #c9dbe9;
+
+  /* Theme mappings */
+  --bg-color: #f2f6fa;
   --surface-color: #ffffff;
-  --surface-alt: #f1f5f9;
-  --text-color: #0f172a;
-  --text-muted: #475569;
-  --border-color: #cbd5e1;
-  --accent-color: #0284c7;
-  --accent-hover: #0369a1;
-  --accent-soft: #e0f2fe;
+  --surface-alt: #e3edf5;
+  --text-color: var(--palette-deep-navy);
+  --text-muted: #2d4c70;
+  --border-color: #bfd4e4;
+  --accent-color: var(--palette-navy);
+  --accent-hover: var(--palette-deep-navy);
+  --accent-soft: var(--palette-ice-blue);
   --danger-color: #b91c1c;
   --danger-soft: #fef2f2;
   --success-color: #15803d;
   --success-soft: #f0fdf4;
-  --focus-ring: #0284c7;
+  --focus-ring: var(--palette-navy);
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -200,7 +208,7 @@ button {
 
 button:hover {
   background-color: var(--surface-alt);
-  border-color: var(--text-muted);
+  border-color: var(--palette-mid-blue);
 }
 
 button:focus-visible {
@@ -301,9 +309,9 @@ button.primary:hover {
 }
 
 .stage-badge.completed {
-  background-color: #e0f2fe;
-  color: #0369a1;
-  border-color: #bae6fd;
+  background-color: var(--palette-ice-blue);
+  color: var(--palette-navy);
+  border-color: var(--palette-soft-blue);
 }
 
 .stage-badge.released {
@@ -364,7 +372,7 @@ button.primary:hover {
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border-color);
-  background-color: #e2e8f0;
+  background-color: var(--border-color);
 }
 
 .bar-segment {
@@ -373,7 +381,7 @@ button.primary:hover {
 }
 
 .bar-locked {
-  background-color: #0284c7;
+  background-color: var(--palette-navy);
 }
 
 .bar-waiting {
