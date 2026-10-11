@@ -1,12 +1,12 @@
 :root {
-  /* Palette from swatches */
-  --palette-deep-navy: #00002a;
-  --palette-navy: #1a3f75;
-  --palette-mid-blue: #3d6b94;
-  --palette-soft-blue: #8fb2c8;
-  --palette-ice-blue: #c9dbe9;
+  /* Brand color palette definition */
+  --palette-deep-navy: #00002a;  /* High-contrast primary text & dark accent */
+  --palette-navy: #1a3f75;       /* Main brand accent color & headers */
+  --palette-mid-blue: #3d6b94;   /* Secondary hover state & borders */
+  --palette-soft-blue: #8fb2c8;  /* Subtle borders & badge outlines */
+  --palette-ice-blue: #c9dbe9;   /* Surface tint & completed badge background */
 
-  /* Theme mappings */
+  /* UI theme mappings */
   --bg-color: #f2f6fa;
   --surface-color: #ffffff;
   --surface-alt: #e3edf5;
