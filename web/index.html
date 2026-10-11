@@ -263,83 +263,104 @@
         </section>
 
         <!-- -----------------------------------------------------------------
-             TOP-RIGHT CARD: "Agreements" List (Matching "Rooms" in Reference)
+             TOP-RIGHT CARD: Workspace Agreements Directory & Filters
              ----------------------------------------------------------------- -->
-        <section class="bento-card bento-agreements-list" id="card-agreements-panel">
-          <div class="card-header-clean flex-between">
-            <h2 class="card-clean-title">Agreements</h2>
-            <button type="button" class="circle-clean-btn" id="btn-view-all-deals" title="View all agreements">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="1"></circle>
-                <circle cx="19" cy="12" r="1"></circle>
-                <circle cx="5" cy="12" r="1"></circle>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Vertical Agreements List -->
-          <div class="agreements-items-stack" id="action-centre-stack-list">
-            <!-- Item 1: Brand Identity -->
-            <div class="agreement-item-row" data-deal-id="deal-2">
-              <div class="item-left flex-align-center gap-3">
-                <div class="item-icon-box">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                </div>
-                <div>
-                  <div class="item-name">Brand Identity</div>
-                  <div class="item-meta">3 device(s) • ₹45,000</div>
-                </div>
+        <section class="bento-card bento-agreements-panel" id="card-agreements-panel">
+          <!-- Card Header & Filter Tabs -->
+          <div class="agreements-panel-header">
+            <div class="header-title-row flex-between">
+              <div class="panel-heading-group">
+                <h2 class="card-clean-title">Agreements</h2>
+                <span class="agreements-count-badge" id="agreements-total-count">4</span>
               </div>
-              <span class="item-chevron">›</span>
+              <button type="button" class="btn-new-agreement-prominent" id="btn-add-agreement-pill" title="Create a new collaborative agreement">
+                <span class="plus-symbol">+</span>
+                <span>New Agreement</span>
+              </button>
             </div>
 
-            <!-- Item 2: Mobile App Dev -->
-            <div class="agreement-item-row" data-deal-id="deal-3">
-              <div class="item-left flex-align-center gap-3">
-                <div class="item-icon-box">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                </div>
-                <div>
-                  <div class="item-name">Mobile App Dev</div>
-                  <div class="item-meta">2 device(s) • ₹1,20,000</div>
-                </div>
-              </div>
-              <span class="item-chevron">›</span>
-            </div>
-
-            <!-- Item 3: Website Redesign (ACTIVE - Floating White Card with Shadow) -->
-            <div class="agreement-item-row active-elevated" data-deal-id="deal-1">
-              <div class="item-left flex-align-center gap-3">
-                <div class="item-icon-box active-box">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                </div>
-                <div>
-                  <div class="item-name">Website Redesign</div>
-                  <div class="item-meta">5 device(s) • ₹30,000</div>
-                </div>
-              </div>
-              <span class="item-chevron">›</span>
-            </div>
-
-            <!-- Item 4: SEO & Marketing -->
-            <div class="agreement-item-row" data-deal-id="deal-4">
-              <div class="item-left flex-align-center gap-3">
-                <div class="item-icon-box">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                </div>
-                <div>
-                  <div class="item-name">SEO & Marketing</div>
-                  <div class="item-meta">1 device(s) • ₹15,000</div>
-                </div>
-              </div>
-              <span class="item-chevron">›</span>
+            <!-- Filter Tabs Row: All, Active, Drafts, Completed, Disputed -->
+            <div class="agreements-filter-tabs" role="tablist" aria-label="Agreement Status Filters">
+              <button type="button" class="filter-tab-pill active" data-filter="all">All</button>
+              <button type="button" class="filter-tab-pill" data-filter="active">Active</button>
+              <button type="button" class="filter-tab-pill" data-filter="drafts">Drafts</button>
+              <button type="button" class="filter-tab-pill" data-filter="completed">Completed</button>
+              <button type="button" class="filter-tab-pill" data-filter="disputed">Disputed</button>
             </div>
           </div>
 
-          <!-- Bottom Dark Full-Width Pill Button: + ADD AGREEMENT -->
-          <button type="button" class="btn-dark-pill-full" id="btn-add-agreement-pill">
-            <span>+ ADD AGREEMENT</span>
-          </button>
+          <!-- Scrollable Agreements Stack List -->
+          <div class="agreements-scroll-container" id="action-centre-stack-list">
+            <!-- Dynamic Agreement Cards will be rendered here by app.js -->
+            <!-- Static Initial Template for Immediate Load -->
+            <div class="workspace-agreement-card active-agreement" data-deal-id="deal-1">
+              <div class="card-top-row flex-between">
+                <h3 class="agreement-card-name">Website Redesign</h3>
+                <span class="badge badge-active">Active</span>
+              </div>
+              <div class="card-middle-row flex-between">
+                <span class="card-party-caption">Client: Riya • Provider: Aman</span>
+                <span class="card-amount-val">₹30,000</span>
+              </div>
+              <div class="card-bottom-row flex-between">
+                <div class="card-progress-bar-wrap">
+                  <div class="card-progress-fill" style="width: 33%;"></div>
+                </div>
+                <span class="card-progress-text">1/3 milestones</span>
+              </div>
+            </div>
+
+            <div class="workspace-agreement-card" data-deal-id="deal-2">
+              <div class="card-top-row flex-between">
+                <h3 class="agreement-card-name">Brand Identity System</h3>
+                <span class="badge badge-completed">Completed</span>
+              </div>
+              <div class="card-middle-row flex-between">
+                <span class="card-party-caption">Client: Kabir • Provider: Priya</span>
+                <span class="card-amount-val">₹45,000</span>
+              </div>
+              <div class="card-bottom-row flex-between">
+                <div class="card-progress-bar-wrap">
+                  <div class="card-progress-fill" style="width: 100%;"></div>
+                </div>
+                <span class="card-progress-text">3/3 milestones</span>
+              </div>
+            </div>
+
+            <div class="workspace-agreement-card" data-deal-id="deal-3">
+              <div class="card-top-row flex-between">
+                <h3 class="agreement-card-name">Mobile App Backend MVP</h3>
+                <span class="badge badge-pending">Draft</span>
+              </div>
+              <div class="card-middle-row flex-between">
+                <span class="card-party-caption">Client: Vikram • Provider: Aman</span>
+                <span class="card-amount-val">₹1,20,000</span>
+              </div>
+              <div class="card-bottom-row flex-between">
+                <div class="card-progress-bar-wrap">
+                  <div class="card-progress-fill" style="width: 0%;"></div>
+                </div>
+                <span class="card-progress-text">0/4 milestones</span>
+              </div>
+            </div>
+
+            <div class="workspace-agreement-card" data-deal-id="deal-4">
+              <div class="card-top-row flex-between">
+                <h3 class="agreement-card-name">SEO & Technical Audit</h3>
+                <span class="badge badge-active">Active</span>
+              </div>
+              <div class="card-middle-row flex-between">
+                <span class="card-party-caption">Client: Riya • Provider: Vikram</span>
+                <span class="card-amount-val">₹15,000</span>
+              </div>
+              <div class="card-bottom-row flex-between">
+                <div class="card-progress-bar-wrap">
+                  <div class="card-progress-fill" style="width: 50%;"></div>
+                </div>
+                <span class="card-progress-text">1/2 milestones</span>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- -----------------------------------------------------------------
