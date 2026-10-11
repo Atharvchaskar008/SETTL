@@ -445,6 +445,56 @@ async function readSettlement(address, fromBlock = 0, contract = "MilestoneVault
   };
 }
 
+// The event that names who acted, for each action a person can take, and the field holding their address.
+const ACTION_EVENTS = {
+  Deposited: ["deposit", "payer"],
+  Staked: ["stake", "payee"],
+  Completed: ["complete", "payee"],
+  Approved: ["approve", "payer"],
+  Disputed: ["dispute", "payer"],
+  Withdrawn: ["withdraw", "to"],
+  Left: ["leave", "payee"],
+  Cancelled: ["cancel", "by"],
+};
+
+/**
+ * Every action a vault has recorded, oldest first: what was done, by which
+ * address, on which stage and in which transaction.
+ *
+ * This is read from the vault's own events, so it does not matter how a
+ * transaction reached the vault. A wallet may send it directly or route it
+ * through a contract of its own; either way the vault names who acted.
+ */
+async function readActions(address, fromBlock = 0) {
+  const vault = await vaultAt(address);
+  const [events, judge] = await Promise.all([vault.queryFilter("*", fromBlock), vault.judge()]);
+
+  const byTransaction = new Map();
+  for (const event of events) {
+    if (!event.eventName) continue;
+    if (!byTransaction.has(event.transactionHash)) byTransaction.set(event.transactionHash, []);
+    byTransaction.get(event.transactionHash).push(event);
+  }
+
+  const actions = [];
+  for (const [tx, emitted] of byTransaction) {
+    const named = emitted.find((event) => ACTION_EVENTS[event.eventName]);
+    // A release or refund with nobody named is the judge settling a dispute: the contract lets no one else do it.
+    const ruling = emitted.find((event) => event.eventName === "Released" || event.eventName === "Refunded");
+    const event = named || ruling;
+    if (!event) continue;
+    const [action, field] = named ? ACTION_EVENTS[event.eventName] : ["resolve"];
+    const index = event.args.index;
+    actions.push({
+      tx,
+      action,
+      by: named ? event.args[field] : judge,
+      ...(index !== undefined ? { stage: Number(index) + 1 } : {}),
+    });
+  }
+  return actions;
+}
+
 /** What one address may withdraw from a vault right now, in rupees. */
 async function owedTo(address, person, contract = "MilestoneVault") {
   return toRupees(await (await vaultAt(address, contract)).owed(person));
@@ -469,6 +519,7 @@ module.exports = {
   contractInfo,
   testNetwork,
   readProgress,
+  readActions,
   readVault,
   readSettlement,
   owedTo,

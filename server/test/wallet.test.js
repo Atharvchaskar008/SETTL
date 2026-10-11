@@ -407,7 +407,8 @@ describe("a deal run entirely from three people's own wallets", () => {
     const { history } = (await api.get(`/deals/${id}/history`)).body;
     const { tx } = history.find((entry) => entry.action === "lock" && entry.result === "accepted");
     assert.equal((await riya.as.post(`/deals/${id}/lock`)).body.rule, "already-locked");
-    assert.equal((await riya.as.post(`/deals/${id}/transactions`, { hash: tx })).body.rule, "not-your-transaction");
+    assert.equal((await riya.as.post(`/deals/${id}/transactions`, { hash: tx })).body.alreadyRecorded, true);
+    assert.equal((await api.get(`/deals/${id}/history`)).body.history.filter((entry) => entry.action === "lock" && entry.result === "accepted").length, 1);
   });
 
   test("the server hands back a transaction to sign and changes nothing itself", async () => {
@@ -493,6 +494,14 @@ describe("a deal run entirely from three people's own wallets", () => {
 
     // The contract's rules hold there too: Aman cannot approve his own stage.
     await assert.rejects(vault.approve(2));
+
+    // The history picks the step up from the vault's own record, under Aman's name, exactly once.
+    await api.get(`/deals/${id}/history`);
+    const { history } = (await api.get(`/deals/${id}/history`)).body;
+    const direct = history.filter((entry) => entry.action === "complete" && entry.stage === 3);
+    assert.equal(direct.length, 1);
+    assert.equal(direct[0].person, "Aman");
+    assert.equal(direct[0].via, "wallet");
   });
 
   test("the deal closes and the settlement adds up, with wallet actions in the history", async () => {

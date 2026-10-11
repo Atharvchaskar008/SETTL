@@ -62,7 +62,9 @@ Only one person needs to do this. They can then share it.
 4. Wait a minute. The balance appears in MetaMask under Sepolia.
 5. Send a little to each friend: MetaMask → **Send** → paste their address → `0.005` → confirm. Do the same for your own extra accounts if you are playing several people.
 
-Faucets change their rules often. If one refuses, try the next. 0.01 test ETH per person is far more than a demo uses.
+Faucets change their rules often. If one refuses, try the next.
+
+What it costs: creating a vault is the expensive step. With MetaMask's default fee it took about 0.02 test ETH on Sepolia; Settl now asks for a smaller fee, which should bring it to about 0.002. Every other step costs far less. The organiser needs the most; 0.002 each is plenty for everyone else. Check the fee MetaMask shows before you confirm.
 
 ### Run Settl on Sepolia
 

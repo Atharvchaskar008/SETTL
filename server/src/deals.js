@@ -24,10 +24,6 @@ const { ethers } = chain;
 // The last part of a route's path names the action, except for these.
 const ACTION_NAMES = { checklist: "edit", text: "rewrite", transactions: "report" };
 
-// Contract functions and the action names the history uses for them.
-const WALLET_ACTIONS = { markComplete: "complete" };
-const STAGE_METHODS = new Set(["markComplete", "approve", "dispute", "resolve"]);
-
 function dealRoutes({ store, env, requireWallet = false }) {
   const router = express.Router();
   const now = () => new Date().toISOString();
@@ -139,8 +135,35 @@ function dealRoutes({ store, env, requireWallet = false }) {
   };
 
   const record = (deal, entry) => {
-    deal.history.push({ time: now(), result: "accepted", ...entry });
+    // A transaction is recorded once, even if the chain was read between its being mined and this call.
+    const existing = entry.tx && deal.history.find((earlier) => earlier.tx === entry.tx);
+    if (existing) Object.assign(existing, entry);
+    else deal.history.push({ time: now(), result: "accepted", ...entry });
     store.save();
+  };
+
+  /**
+   * Adds to the history every action the vault has recorded that the history
+   * does not hold yet. Who did what is taken from the vault's own events, so a
+   * step taken straight on the contract, or delivered by a wallet through a
+   * contract of its own, is recorded as faithfully as one sent through this server.
+   */
+  const syncHistory = async (deal) => {
+    const known = new Set(deal.history.map((entry) => entry.tx).filter(Boolean));
+    const actions = await chain.readActions(deal.vault, deal.vaultBlock || 0);
+    for (const action of actions) {
+      if (known.has(action.tx)) continue;
+      const person = store.people().find((candidate) => candidate.address === action.by);
+      const byWallet = !person || person.kind === WALLET;
+      record(deal, {
+        person: person ? person.name : action.by,
+        action: action.action,
+        ...(action.stage ? { stage: action.stage } : {}),
+        tx: action.tx,
+        via: byWallet ? "wallet" : "chain",
+        detail: byWallet ? "Signed and sent from their own wallet." : "Read from the vault's record on the chain.",
+      });
+    }
   };
 
   /**
@@ -596,29 +619,40 @@ function dealRoutes({ store, env, requireWallet = false }) {
       if (deal.status !== "locked") {
         return refuse(request, response, { rule: "not-locked", reason: "The deal is not locked yet, so it has no transactions." });
       }
-      const vault = await chain.vaultAt(deal.vault);
-      const sent = await chain.lookUp(hash, vault);
-      if (!sent) {
-        return refuse(request, response, { rule: "unknown-transaction", reason: "That transaction is not on the chain." });
+      // The vault's own record says what this transaction did and who did it. That holds
+      // however the wallet delivered it: sent directly, or routed through a contract of its own.
+      const recorded = () => deal.history.find((entry) => entry.tx && same(entry.tx, hash));
+      const alreadyRecorded = Boolean(recorded());
+      if (!recorded()) await syncHistory(deal);
+      if (!recorded()) {
+        const sent = await chain.lookUp(hash);
+        if (!sent) {
+          return refuse(request, response, { rule: "unknown-transaction", reason: "That transaction is not on the chain." });
+        }
+        if (!sent.succeeded) {
+          return refuse(request, response, { rule: "failed-on-chain", reason: "The contract refused that transaction, so nothing changed." });
+        }
+        // It may have reached the chain a moment before the node this server reads from had its events.
+        await syncHistory(deal);
       }
-      if (!same(sent.to, deal.vault) || !same(sent.from, actor.address)) {
+      const entry = recorded();
+      if (!entry) {
+        return refuse(request, response, { rule: "not-this-vault", reason: "That transaction did nothing in this deal's vault." });
+      }
+      if (!sameName(entry.person, actor.name)) {
         return refuse(request, response, {
           rule: "not-your-transaction",
-          reason: "That transaction was not sent by you to this deal's vault.",
+          reason: `That transaction was ${entry.person}'s, not yours.`,
         });
       }
-      if (deal.history.some((entry) => entry.tx === hash)) {
-        return response.json({ accepted: true, alreadyRecorded: true, deal: await fullView(deal) });
-      }
-      if (!sent.succeeded) {
-        return refuse(request, response, { rule: "failed-on-chain", reason: "The contract refused that transaction, so nothing changed." });
-      }
-
-      const action = WALLET_ACTIONS[sent.method] || sent.method;
-      const entry = { person: actor.name, action, tx: hash, via: "wallet", detail: "Signed and sent from their own wallet." };
-      if (STAGE_METHODS.has(sent.method)) entry.stage = Number(sent.args[0]) + 1;
-      record(deal, entry);
-      response.json({ accepted: true, action, stage: entry.stage, tx: hash, deal: await fullView(deal) });
+      response.json({
+        accepted: true,
+        ...(alreadyRecorded ? { alreadyRecorded: true } : {}),
+        action: entry.action,
+        stage: entry.stage,
+        tx: hash,
+        deal: await fullView(deal),
+      });
     })
   );
 
@@ -739,10 +773,16 @@ function dealRoutes({ store, env, requireWallet = false }) {
   );
 
   // Oldest first. Accepted actions and refused attempts are in the same list.
-  router.get("/deals/:id/history", (request, response) => {
-    const deal = dealOf(request, response);
-    if (deal) response.json({ history: deal.history });
-  });
+  router.get(
+    "/deals/:id/history",
+    wrap(async (request, response) => {
+      const deal = dealOf(request, response);
+      if (!deal) return;
+      // Anything done on the vault without telling the server still belongs in the record.
+      if (deal.status === "locked") await syncHistory(deal);
+      response.json({ history: deal.history });
+    })
+  );
 
   // Who paid in, who was paid, who was refunded, and whether it all adds up.
   // The figures come from the vault's own events, not from the history above.
