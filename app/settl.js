@@ -45,9 +45,94 @@
     file: null, // a document attached to the next deal: { name, text } or { name, type, data }
     tab: null, // the part of the workspace on show; null picks the one that fits the deal's status
     menu: false,
+    profileOpen: false,
     busy: false,
     drawn: "",
   };
+
+  const PROFILE_METADATA = {
+    riya: {
+      name: "Riya",
+      avatar: "/profiles/riya.svg",
+      role: "Buyer / Client",
+      description: "Shop owner funding freelance website milestones",
+      badge: "Buyer",
+      color: "#e0a82e",
+    },
+    aman: {
+      name: "Aman",
+      avatar: "/profiles/aman.svg",
+      role: "Seller / Developer",
+      description: "Freelance web designer & frontend engineer",
+      badge: "Seller",
+      color: "#e8705a",
+    },
+    meera: {
+      name: "Meera",
+      avatar: "/profiles/meera.svg",
+      role: "Dispute Arbitrator",
+      description: "Trusted third-party mediator for milestone escrow",
+      badge: "Mediator",
+      color: "#4f9380",
+    },
+    platform_mediator: {
+      name: "Platform Mediator",
+      avatar: "/profiles/platform_mediator.svg",
+      role: "Protocol Arbiter",
+      description: "Neutral platform escrow dispute arbitrator",
+      badge: "Protocol",
+      color: "#3a4f80",
+    },
+    kabir: {
+      name: "Kabir",
+      avatar: "/profiles/kabir.svg",
+      role: "Tech Lead",
+      description: "Engineering evaluator verifying code and deliveries",
+      badge: "Reviewer",
+      color: "#2c3e66",
+    },
+    priya: {
+      name: "Priya",
+      avatar: "/profiles/priya.svg",
+      role: "UI/UX Designer",
+      description: "Creative designer building web & mobile interfaces",
+      badge: "Designer",
+      color: "#8a5cd1",
+    },
+    vikram: {
+      name: "Vikram",
+      avatar: "/profiles/vikram.svg",
+      role: "Contractor",
+      description: "Specialist contractor delivering staged work",
+      badge: "Contractor",
+      color: "#8a3b48",
+    },
+  };
+
+  function getProfileMeta(name) {
+    if (!name) {
+      return {
+        name: "Guest",
+        avatar: "/profiles/_overview.svg",
+        role: "Unselected",
+        description: "Choose a persona below to act in deals",
+        badge: "Guest",
+        color: "#4E6A9C",
+      };
+    }
+    const slug = String(name).trim().toLowerCase().replace(/\s+/g, "_");
+    if (PROFILE_METADATA[slug]) return PROFILE_METADATA[slug];
+    const match = Object.keys(PROFILE_METADATA).find((k) => slug.includes(k) || k.includes(slug));
+    if (match) return PROFILE_METADATA[match];
+    return {
+      name,
+      avatar: "/profiles/_overview.svg",
+      role: "Participant",
+      description: "Demo identity",
+      badge: "Member",
+      color: "#2D588D",
+    };
+  }
 
   // ---- small helpers -------------------------------------------------------
 
@@ -453,18 +538,22 @@
   }
 
   function draw(force) {
-    const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.closest("#deal, #who");
-    const picture = JSON.stringify([state.me, state.balance, state.people, state.deals, state.deal, state.history, state.summary, state.lab, state.editing !== null, state.allHistory, state.menu, state.offline, state.tab]);
+    const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.closest("#deal, #who, #profile-modal");
+    const picture = JSON.stringify([state.me, state.balance, state.people, state.deals, state.deal, state.history, state.summary, state.lab, state.editing !== null, state.allHistory, state.menu, state.offline, state.tab, state.profileOpen]);
     if (!force && (typing || picture === state.drawn)) return;
     state.drawn = picture;
     drawTop();
     drawDeals();
     $("deal").replaceChildren(...(state.lab ? labView() : state.deal ? dealView(state.deal) : []));
+    drawProfileModal();
   }
 
   function drawTop() {
-    $("net").textContent = state.chain.network;
-    $("net").title = `Test money only. ₹1,000 = ${coin(1000)}`;
+    const netEl = $("net");
+    if (netEl) {
+      netEl.textContent = state.chain.network;
+      netEl.title = `Test money only. ₹1,000 = ${coin(1000)}`;
+    }
     $("ask-ai").textContent = state.offline ? "AI off" : "AI";
     $("ask-ai").className = `quiet toggle ${state.offline ? "off" : ""}`;
     $("ask-ai").title = state.offline ? "Deals are read by the offline reader" : "Deals are read by the AI model";
@@ -474,43 +563,233 @@
       h("a", { href: "/site/" }, "How Settl works")
     );
 
-    const items = [];
-    if (state.wallet) items.push(h("div", { class: "line mono muted" }, short(state.me.address)));
-    if (state.demo) {
-      for (const person of state.people.filter((candidate) => candidate.kind === "demo")) {
-        const on = state.me && !state.wallet && same(person.name, state.me.name);
-        const pick = () => {
-          state.menu = false;
-          run(() => actAsDemo(person.name));
-        };
-        items.push(h("button", { type: "button", class: on ? "on" : "", onclick: pick }, person.name));
-      }
+    const meta = state.me ? getProfileMeta(state.me.name) : getProfileMeta(null);
+    const balance = state.wallet && state.balance !== null ? `${Number(state.balance).toLocaleString("en-IN", { maximumFractionDigits: 4 })} ${state.chain.coin}` : "";
+
+    const triggerBtn = h(
+      "button",
+      {
+        type: "button",
+        class: `nav-profile-trigger ${state.me ? "" : "guest"}`,
+        id: "nav-profile-btn",
+        onclick: () => toggleProfileModal(),
+        title: state.me ? `Active: ${state.me.name} (${meta.role}) — Click to switch profile` : "Open User Profiles & Personas",
+        "aria-haspopup": "dialog",
+        "aria-expanded": String(state.profileOpen),
+      },
+      h(
+        "div",
+        { class: "nav-profile-avatar-wrap" },
+        h("img", {
+          class: "nav-profile-avatar-img",
+          src: meta.avatar,
+          alt: meta.name,
+          onerror: (e) => { e.currentTarget.src = "/profiles/_overview.svg"; },
+        }),
+        state.me && h("span", { class: "nav-profile-active-dot" })
+      ),
+      h(
+        "div",
+        { class: "nav-profile-info" },
+        h("span", { class: "nav-profile-name" }, state.me ? state.me.name : "Profiles"),
+        h("span", { class: "nav-profile-role-chip" }, state.me ? meta.badge : "Select")
+      ),
+      balance && h("span", { class: "nav-profile-bal mono" }, balance),
+      h("span", { class: "nav-profile-chevron" }, "▾")
+    );
+
+    $("who").replaceChildren(triggerBtn);
+  }
+
+  function toggleProfileModal() {
+    if (state.profileOpen) closeProfileModal();
+    else openProfileModal();
+  }
+
+  function openProfileModal() {
+    state.profileOpen = true;
+    const modal = $("profile-modal");
+    if (modal) modal.hidden = false;
+    draw(true);
+  }
+
+  function closeProfileModal() {
+    state.profileOpen = false;
+    const modal = $("profile-modal");
+    if (modal) modal.hidden = true;
+    draw(true);
+  }
+
+  function drawProfileModal() {
+    const modal = $("profile-modal");
+    const body = $("profile-modal-body");
+    if (!modal || !body) return;
+    if (!state.profileOpen) {
+      modal.hidden = true;
+      return;
     }
-    if (window.ethereum && !state.wallet) items.push(h("button", { type: "button", onclick: () => run(connect) }, "Connect wallet"));
-    if (state.wallet) items.push(h("button", { type: "button", onclick: () => run(signOut) }, "Sign out"));
-    if (state.demo) {
-      const input = h("input", { placeholder: "New demo person", maxlength: "40", "aria-label": "New demo person" });
-      const join = (event) => {
-        event.preventDefault();
-        if (input.value.trim()) run(() => actAsDemo(input.value.trim()));
-      };
-      items.push(h("form", { onsubmit: join }, input, h("button", { type: "submit" }, "Add")));
+    modal.hidden = false;
+
+    // 1. Hero Card: Active profile or call to select
+    let heroEl;
+    if (state.me) {
+      const meta = getProfileMeta(state.me.name);
+      const balanceStr = state.wallet && state.balance !== null ? `${Number(state.balance).toLocaleString("en-IN", { maximumFractionDigits: 4 })} ${state.chain.coin}` : "";
+
+      heroEl = h(
+        "div",
+        { class: "profile-hero-card" },
+        h(
+          "div",
+          { class: "profile-hero-avatar-wrap" },
+          h("img", {
+            class: "profile-hero-avatar-img",
+            src: meta.avatar,
+            alt: state.me.name,
+            onerror: (e) => { e.currentTarget.src = "/profiles/_overview.svg"; },
+          }),
+          h("span", { class: "nav-profile-active-dot" })
+        ),
+        h(
+          "div",
+          { class: "profile-hero-details" },
+          h(
+            "div",
+            { class: "profile-hero-name-row" },
+            h("h3", { class: "profile-hero-name" }, state.me.name),
+            state.wallet && h("span", { class: "tag mono" }, "Wallet")
+          )
+        ),
+        h(
+          "div",
+          { class: "profile-hero-actions" },
+          h("button", {
+            type: "button",
+            class: "quiet",
+            onclick: () => {
+              if (state.wallet) run(signOut);
+              else {
+                signedOut();
+                draw(true);
+              }
+            }
+          }, state.wallet ? "Sign Out" : "Deselect")
+        )
+      );
+    } else {
+      heroEl = h(
+        "div",
+        { class: "profile-hero-card" },
+        h(
+          "div",
+          { class: "profile-hero-avatar-wrap" },
+          h("img", { class: "profile-hero-avatar-img", src: "/profiles/_overview.svg", alt: "Overview" })
+        ),
+        h(
+          "div",
+          { class: "profile-hero-details" },
+          h(
+            "div",
+            { class: "profile-hero-name-row" },
+            h("h3", { class: "profile-hero-name" }, "No Active Persona")
+          )
+        )
+      );
     }
 
-    const open = () => {
-      // With nothing to choose from, the button connects straight away.
-      if (!state.me && !state.demo) return run(connect);
-      state.menu = !state.menu;
-      draw(true);
-    };
-    const balance = state.wallet && state.balance !== null ? `${Number(state.balance).toLocaleString("en-IN", { maximumFractionDigits: 4 })} ${state.chain.coin}` : "";
-    const button = h(
-      "button",
-      { type: "button", class: state.me ? "who-name" : "primary", onclick: open, "aria-expanded": String(state.menu) },
-      state.me ? state.me.name : "Connect",
-      balance && h("span", { class: "muted mono" }, balance)
+    // 2. Roster Section: 7 canonical demo personas
+    const knownKeys = ["riya", "aman", "meera", "platform_mediator", "kabir", "priya", "vikram"];
+    const rosterCards = knownKeys.map((key) => {
+      const meta = PROFILE_METADATA[key];
+      const isActive = state.me && !state.wallet && same(state.me.name, meta.name);
+
+      const onSelect = () => {
+        run(async () => {
+          await actAsDemo(meta.name);
+          closeProfileModal();
+        });
+      };
+
+      return h(
+        "div",
+        {
+          class: `profile-card ${isActive ? "active" : ""}`,
+          onclick: onSelect,
+          title: `Switch persona to ${meta.name} (${meta.role})`,
+        },
+        h("img", {
+          class: "profile-card-avatar",
+          src: meta.avatar,
+          alt: meta.name,
+          onerror: (e) => { e.currentTarget.src = "/profiles/_overview.svg"; },
+        }),
+        h("span", { class: "profile-card-name" }, meta.name),
+        h("span", { class: "profile-card-role" }, meta.role),
+        h("span", { class: "profile-card-action" }, isActive ? "Active" : "Switch")
+      );
+    });
+
+    const rosterSection = h(
+      "div",
+      {},
+      h(
+        "div",
+        { class: "profile-section-title-row" },
+        h("h4", { class: "profile-section-title" }, "Simulated Personas"),
+        h("span", { class: "profile-section-hint" }, "Click any card to switch identity")
+      ),
+      h("div", { class: "profile-grid" }, ...rosterCards)
     );
-    $("who").replaceChildren(...(state.menu ? [button, h("div", { class: "menu" }, items)] : [button]));
+
+    // 3. Custom demo person form
+    const customInput = h("input", {
+      type: "text",
+      class: "profile-custom-input",
+      placeholder: "Add custom demo persona (e.g. Rahul)...",
+      maxlength: "40",
+      "aria-label": "Custom demo persona name",
+    });
+    const customForm = h(
+      "form",
+      {
+        class: "profile-custom-form",
+        onsubmit: (e) => {
+          e.preventDefault();
+          const val = customInput.value.trim();
+          if (val) {
+            run(async () => {
+              await actAsDemo(val);
+              closeProfileModal();
+            });
+          }
+        },
+      },
+      customInput,
+      h("button", { type: "submit", class: "primary" }, "Add & Switch")
+    );
+
+    // 4. Web3 Wallet Box
+    const walletBox = h(
+      "div",
+      { class: "profile-wallet-box" },
+      h(
+        "div",
+        { class: "profile-wallet-info" },
+        h("span", { style: "font-size: 16px;" }, "🦊"),
+        h(
+          "span",
+          {},
+          state.wallet
+            ? `Connected wallet: ${short(state.me.address)}`
+            : "Connect MetaMask to sign transactions with real Ethereum accounts"
+        )
+      ),
+      state.wallet
+        ? h("button", { type: "button", class: "quiet", onclick: () => { run(signOut); closeProfileModal(); } }, "Disconnect")
+        : h("button", { type: "button", class: "primary", onclick: () => { run(connect); closeProfileModal(); } }, "Connect Wallet")
+    );
+
+    body.replaceChildren(heroEl, rosterSection, customForm, walletBox);
   }
 
   /** Keeps a chosen file ready to go with the next deal. Text is read here; a PDF or a picture is read by the server's model. */
@@ -580,7 +859,6 @@
       return h(
         "button",
         { type: "button", class: `row ${!state.lab && deal.id === state.openId ? "on" : ""}`, onclick: open },
-        h("span", { class: `dot ${status.tone}` }),
         h("span", { class: "name" }, deal.title || "Untitled deal"),
         h("span", {}, rupees(deal.total)),
         h("span", { class: "sub" }, status.word, deal.status === "locked" ? ` · ${deal.stagesSettled}/${deal.stageCount}` : "")
@@ -1156,6 +1434,17 @@
       const [file] = event.target.files;
       event.target.value = "";
       run(() => attach(file));
+    });
+    const closeProfileBtn = $("profile-modal-close");
+    if (closeProfileBtn) closeProfileBtn.addEventListener("click", closeProfileModal);
+    const profileModalBackdrop = $("profile-modal");
+    if (profileModalBackdrop) {
+      profileModalBackdrop.addEventListener("click", (event) => {
+        if (event.target === profileModalBackdrop) closeProfileModal();
+      });
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.profileOpen) closeProfileModal();
     });
     document.addEventListener("click", (event) => {
       // The path is used because the clicked button may already have been redrawn.
