@@ -1,0 +1,39 @@
+{
+  "title": "Residential House Construction",
+  "payers": [
+    { "name": "Rajesh Gupta", "share": 300000 }
+  ],
+  "judge": { "name": "Anita Desai" },
+  "stages": [
+    {
+      "title": "Foundation",
+      "payee": "Suresh Kumar",
+      "amount": 80000,
+      "condition": "the concrete foundation slab is cast and cured for fourteen days",
+      "source": "mason Suresh Kumar receives 80000 rupees for the foundation once the concrete foundation slab is cast and cured for fourteen days"
+    },
+    {
+      "title": "Brick Walls",
+      "payee": "Suresh Kumar",
+      "amount": 120000,
+      "condition": "all perimeter and partition brick walls reach the roof beam height",
+      "source": "Suresh Kumar receives 120000 rupees for the brick walls after all perimeter and partition brick walls reach the roof beam height"
+    },
+    {
+      "title": "Plumbing",
+      "payee": "Manoj Tiwari",
+      "amount": 60000,
+      "condition": "all water supply and drainage pipes are installed and pressure tested",
+      "source": "plumber Manoj Tiwari receives 60000 rupees when all water supply and drainage pipes are installed and pressure tested"
+    },
+    {
+      "title": "Electrical Wiring",
+      "payee": "Dinesh Sharma",
+      "amount": 40000,
+      "condition": "all internal conduit wiring and switchboard fittings are completed",
+      "source": "electrician Dinesh Sharma receives 40000 rupees after all internal conduit wiring and switchboard fittings are completed"
+    }
+  ],
+  "unclear": [],
+  "total": 300000
+}
