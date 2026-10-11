@@ -104,6 +104,17 @@ function setupNavigation() {
     });
   });
 
+  document.querySelectorAll(".rail-icon-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const screen = btn.getAttribute("data-screen");
+      if (screen) navigateTo(screen);
+    });
+  });
+
+  document.getElementById("rail-home-btn")?.addEventListener("click", () => {
+    navigateTo("deals");
+  });
+
   document.getElementById("brand-logo-btn")?.addEventListener("click", () => {
     navigateTo("deals");
   });
@@ -127,6 +138,10 @@ function navigateTo(screenId) {
   clearRefusals();
 
   document.querySelectorAll(".nav-link").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-screen") === screenId);
+  });
+
+  document.querySelectorAll(".rail-icon-btn").forEach(btn => {
     btn.classList.toggle("active", btn.getAttribute("data-screen") === screenId);
   });
 
@@ -776,36 +791,44 @@ function renderDealDashboard(deal, metaData = null) {
     <span><strong>Judge:</strong> ${escapeHtml(deal.judge)}</span>
   `;
 
-  document.getElementById("dash-read-by-type").textContent = deal.readBy || "model";
+  const readByType = document.getElementById("dash-read-by-type");
+  if (readByType) readByType.textContent = deal.readBy || "model";
 
   // Summary Button visibility
   const btnViewSummary = document.getElementById("btn-view-summary");
-  if (deal.phase === "Closed" || deal.phase === "Cancelled") {
-    btnViewSummary.classList.remove("hidden");
-    btnViewSummary.onclick = () => openSummaryScreen(deal.id);
-  } else {
-    btnViewSummary.classList.add("hidden");
+  if (btnViewSummary) {
+    if (deal.phase === "Closed" || deal.phase === "Cancelled") {
+      btnViewSummary.classList.remove("hidden");
+      btnViewSummary.onclick = () => openSummaryScreen(deal.id);
+    } else {
+      btnViewSummary.classList.add("hidden");
+    }
   }
 
   // 2. Next Step Banner (Principle 3: One clear next step)
   const nextStepText = document.getElementById("dash-next-step-text");
-  const computedWaiting = metaData?.waitingFor || computeClientWaitingFor(deal);
-  nextStepText.textContent = computedWaiting;
+  if (nextStepText) {
+    const computedWaiting = metaData?.waitingFor || computeClientWaitingFor(deal);
+    nextStepText.textContent = computedWaiting;
+  }
 
   // 3. Money Bar
   const recon = metaData?.reconciliation || calculateClientRecon(deal);
-  document.getElementById("dash-money-total").textContent = formatRupees(recon.totalDeposited);
+  const moneyTotal = document.getElementById("dash-money-total");
+  if (moneyTotal) moneyTotal.textContent = formatRupees(recon.totalDeposited);
 
   const reconBadge = document.getElementById("dash-reconcile-badge");
   const bugWarning = document.getElementById("reconcile-bug-warning");
-  if (recon.reconciles) {
-    reconBadge.className = "badge badge-success";
-    reconBadge.textContent = "yes";
-    bugWarning.classList.add("hidden");
-  } else {
-    reconBadge.className = "badge badge-danger";
-    reconBadge.textContent = "no";
-    bugWarning.classList.remove("hidden");
+  if (reconBadge) {
+    if (recon.reconciles) {
+      reconBadge.className = "badge badge-success";
+      reconBadge.textContent = "yes";
+      if (bugWarning) bugWarning.classList.add("hidden");
+    } else {
+      reconBadge.className = "badge badge-danger";
+      reconBadge.textContent = "no";
+      if (bugWarning) bugWarning.classList.remove("hidden");
+    }
   }
 
   // Segment widths
@@ -818,18 +841,28 @@ function renderDealDashboard(deal, metaData = null) {
   const barWaiting = document.getElementById("bar-seg-waiting");
   const barPaid = document.getElementById("bar-seg-paidout");
 
-  barLocked.style.width = `${lockedPct}%`;
-  barWaiting.style.width = `${waitingPct}%`;
-  barPaid.style.width = `${paidPct}%`;
+  if (barLocked) barLocked.style.width = `${lockedPct}%`;
+  if (barWaiting) barWaiting.style.width = `${waitingPct}%`;
+  if (barPaid) barPaid.style.width = `${paidPct}%`;
 
-  document.getElementById("metric-val-locked").textContent = formatRupees(recon.locked);
-  document.getElementById("metric-val-waiting").textContent = formatRupees(recon.waiting);
-  document.getElementById("metric-val-paidout").textContent = formatRupees(recon.paidOut);
+  const mLocked = document.getElementById("metric-val-locked");
+  if (mLocked) mLocked.textContent = formatRupees(recon.locked);
+  const mWaiting = document.getElementById("metric-val-waiting");
+  if (mWaiting) mWaiting.textContent = formatRupees(recon.waiting);
+  const mPaid = document.getElementById("metric-val-paidout");
+  if (mPaid) mPaid.textContent = formatRupees(recon.paidOut);
+
+  const yourMoney = document.getElementById("your-money-amount");
+  if (yourMoney) {
+    yourMoney.textContent = formatRupees(deal.withdrawable?.[state.actingPerson] || 0);
+  }
 
   // 4. Stages List
   const stagesSettledPill = document.getElementById("dash-stages-settled-pill");
-  const settledCount = deal.stages.filter(s => s.state === "Released" || s.state === "Refunded").length;
-  stagesSettledPill.textContent = `${settledCount} of ${deal.stages.length} settled`;
+  if (stagesSettledPill) {
+    const settledCount = deal.stages.filter(s => s.state === "Released" || s.state === "Refunded").length;
+    stagesSettledPill.textContent = `${settledCount} of ${deal.stages.length} settled`;
+  }
 
   const stagesContainer = document.getElementById("dash-stages-container");
   stagesContainer.innerHTML = deal.stages.map(stage => {
@@ -838,60 +871,140 @@ function renderDealDashboard(deal, metaData = null) {
 
   attachStageButtonHandlers(deal);
 
-  // 5. Your Money
-  const actingPersonName = state.actingPerson;
-  document.getElementById("your-money-acting-name").textContent = actingPersonName;
-  const userBalance = deal.withdrawable?.[actingPersonName] || 0;
-  document.getElementById("your-money-amount").textContent = formatRupees(userBalance);
+  // 5. Left Nav Rail Profile Avatar & Technical Hash
+  const avatarEl = document.getElementById("rail-avatar-badge");
+  if (avatarEl) avatarEl.textContent = (state.actingPerson || "R")[0].toUpperCase();
 
-  const withdrawBtn = document.getElementById("btn-withdraw-funds");
-  withdrawBtn.disabled = userBalance <= 0;
+  const hashEl = document.getElementById("proof-vault-hash");
+  if (hashEl) hashEl.textContent = `Hash: ${(deal.agreementFingerprint || "0x8f4b").slice(0, 10)}...`;
 
-  // 6. People Card
-  const peopleContainer = document.getElementById("dash-people-list");
-  const participantsSet = new Set();
-  const peopleItems = [];
-
-  deal.payers.forEach(p => {
-    participantsSet.add(p.person);
-    const deposited = deal.deposited?.[p.person];
-    peopleItems.push({
-      name: p.person,
-      role: "Payer",
-      extra: `Share: ${formatRupees(p.share)} • ${deposited ? 'deposited' : 'pending deposit'}`
-    });
-  });
-
-  deal.stages.forEach(s => {
-    if (!participantsSet.has(s.payee)) {
-      participantsSet.add(s.payee);
-      peopleItems.push({
-        name: s.payee,
-        role: "Payee",
-        extra: `Stage assignee`
+  // 6. Card B: Action Centre Stack
+  const actionStackList = document.getElementById("action-centre-stack-list");
+  const actionCountBadge = document.getElementById("action-centre-count");
+  if (actionStackList) {
+    const stackItems = [];
+    if (deal.phase === "Funding") {
+      deal.payers.filter(p => !deal.deposited?.[p.person]).forEach(p => {
+        stackItems.push({
+          type: "urgent",
+          title: `Deposit Simulated UPI (${p.person})`,
+          desc: `Payer share ${formatRupees(p.share)} pending deposit to activate agreement.`
+        });
       });
     }
-  });
+    deal.stages.forEach(s => {
+      if (s.state === "Completed") {
+        stackItems.push({
+          type: "urgent",
+          title: `Review Stage ${s.num}: ${s.title}`,
+          desc: `Payee ${s.payee} completed milestone. Payer approval requested.`
+        });
+      } else if (s.state === "Disputed") {
+        stackItems.push({
+          type: "urgent",
+          title: `Dispute on Stage ${s.num}: ${s.title}`,
+          desc: `Arbiter ${deal.judge} reviewing submitted delivery evidence.`
+        });
+      } else if (s.state === "Pending") {
+        stackItems.push({
+          type: "waiting",
+          title: `Stage ${s.num}: ${s.title}`,
+          desc: `Assigned to ${s.payee} — awaiting milestone completion.`
+        });
+      }
+    });
 
-  if (!participantsSet.has(deal.judge)) {
-    peopleItems.push({
-      name: deal.judge,
-      role: "Judge",
-      extra: "Dispute arbitrator"
+    if (actionCountBadge) {
+      actionCountBadge.textContent = `${stackItems.length} pending`;
+    }
+    actionStackList.innerHTML = stackItems.map(item => `
+      <div class="action-stack-card">
+        <span class="stack-status-dot dot-${item.type}"></span>
+        <div class="stack-card-content">
+          <h4>${escapeHtml(item.title)}</h4>
+          <p>${escapeHtml(item.desc)}</p>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // 7. Card C: 3x3 Action Command Hub
+  const matrixContainer = document.getElementById("action-matrix-container");
+  if (matrixContainer) {
+    const activeStage = deal.stages.find(s => s.state === "Completed" || s.state === "Disputed" || s.state === "Pending") || deal.stages[0];
+    const stgId = activeStage ? activeStage.id : "stg-1";
+
+    matrixContainer.innerHTML = `
+      <button type="button" class="matrix-action-btn btn-stage-action" data-action="done" data-stage="${stgId}" title="Payee submits deliverable proof">Submit Proof</button>
+      <button type="button" class="matrix-action-btn btn-stage-action" data-action="done" data-stage="${stgId}" title="Mark current milestone completed">Mark Done</button>
+      <button type="button" class="matrix-action-btn" id="btn-matrix-withdraw" title="Withdraw credited balance">Withdraw ₹</button>
+
+      <button type="button" class="matrix-action-btn btn-primary-action btn-stage-action" data-action="approve" data-stage="${stgId}" title="Client approves milestone release">Approve</button>
+      <button type="button" class="matrix-action-btn btn-danger-action btn-stage-action" data-action="dispute" data-stage="${stgId}" title="Client disputes deliverable">Dispute</button>
+      <button type="button" class="matrix-action-btn" id="btn-matrix-deposit" title="Payer deposits simulated UPI share">Deposit UPI</button>
+
+      <button type="button" class="matrix-action-btn btn-stage-action" data-action="pay_payee" data-stage="${stgId}" title="Arbiter awards funds to payee">Pay Payee</button>
+      <button type="button" class="matrix-action-btn btn-stage-action" data-action="refund_payers" data-stage="${stgId}" title="Arbiter refunds escrow to client">Refund Client</button>
+      <button type="button" class="matrix-action-btn" id="btn-matrix-ruling" title="Arbiter records decision">Record Ruling</button>
+    `;
+
+    document.getElementById("btn-matrix-withdraw")?.addEventListener("click", () => {
+      document.getElementById("btn-withdraw-funds")?.click();
+    });
+
+    document.getElementById("btn-matrix-deposit")?.addEventListener("click", async () => {
+      clearRefusals();
+      const res = await api(`/deals/${deal.id}/deposit`, {
+        method: "POST",
+        body: JSON.stringify({ person: state.actingPerson })
+      });
+      if (!res.ok) {
+        showRefusal("matrix-refusal-slot", res.error);
+      } else {
+        await loadDealDashboard(deal.id);
+      }
+    });
+
+    document.getElementById("btn-matrix-ruling")?.addEventListener("click", () => {
+      alert(`Arbiter ${deal.judge} records formal rulings directly via 'Pay Payee' or 'Refund Client'.`);
     });
   }
 
-  peopleContainer.innerHTML = peopleItems.map(p => `
-    <div class="person-card-item">
-      <div class="person-name-role">
-        <span class="person-name">${escapeHtml(p.name)}</span>
-        <span class="person-role">${escapeHtml(p.role)}</span>
+  // 8. People Card (if present)
+  const peopleContainer = document.getElementById("dash-people-list");
+  if (peopleContainer) {
+    const participantsSet = new Set();
+    const peopleItems = [];
+    deal.payers.forEach(p => {
+      participantsSet.add(p.person);
+      const deposited = deal.deposited?.[p.person];
+      peopleItems.push({
+        name: p.person,
+        role: "Payer",
+        extra: `Share: ${formatRupees(p.share)} • ${deposited ? 'deposited' : 'pending deposit'}`
+      });
+    });
+    deal.stages.forEach(s => {
+      if (!participantsSet.has(s.payee)) {
+        participantsSet.add(s.payee);
+        peopleItems.push({ name: s.payee, role: "Payee", extra: `Stage assignee` });
+      }
+    });
+    if (!participantsSet.has(deal.judge)) {
+      peopleItems.push({ name: deal.judge, role: "Judge", extra: "Dispute arbitrator" });
+    }
+    peopleContainer.innerHTML = peopleItems.map(p => `
+      <div class="person-card-item">
+        <div class="person-name-role">
+          <span class="person-name">${escapeHtml(p.name)}</span>
+          <span class="person-role">${escapeHtml(p.role)}</span>
+        </div>
+        <span class="person-deposit-status text-muted">${escapeHtml(p.extra)}</span>
       </div>
-      <span class="person-deposit-status text-muted">${escapeHtml(p.extra)}</span>
-    </div>
-  `).join("");
+    `).join("");
+  }
 
-  // 7. History (Newest first)
+  // 9. History (Newest first)
   const historyContainer = document.getElementById("dash-history-timeline");
   if (deal.history && deal.history.length > 0) {
     historyContainer.innerHTML = deal.history.map(entry => {
@@ -912,7 +1025,7 @@ function renderDealDashboard(deal, metaData = null) {
   }
 }
 
-// Render individual Stage Card (Screen 3)
+// Render individual Stage Card (Card A Timeline)
 function renderStageCard(stage, deal) {
   const isPayer = deal.payers.some(p => p.person === state.actingPerson);
   const isPayee = stage.payee === state.actingPerson;
@@ -926,12 +1039,8 @@ function renderStageCard(stage, deal) {
     approvalInfo = `<span class="approval-count-text">${approved} of ${deal.payers.length} approved</span>`;
   }
 
-  // Determine which buttons to show according to role and state
-  // With "Try anything" on, show EVERY button to EVERYONE!
   let buttonsHtml = "";
-
   if (tryAll) {
-    // Show all buttons unconditionally
     buttonsHtml = `
       <button type="button" class="btn btn-secondary btn-sm btn-stage-action" data-action="done" data-stage="${stage.id}">Mark done</button>
       <button type="button" class="btn btn-primary btn-sm btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve</button>
@@ -961,7 +1070,6 @@ function renderStageCard(stage, deal) {
     }
   }
 
-  // Waiting info when acting person has nothing to do on this stage
   let waitingInfo = "";
   if (!buttonsHtml || !buttonsHtml.trim()) {
     if (stage.state === "Pending") {
@@ -974,27 +1082,27 @@ function renderStageCard(stage, deal) {
   }
 
   return `
-    <div class="stage-card-item" id="stage-card-${stage.id}">
-      <div class="stage-header-row">
-        <div class="stage-identity">
-          <span class="stage-num-badge">${stage.num}</span>
+    <div class="hero-stage-item" id="stage-card-${stage.id}">
+      <div class="hero-stage-top">
+        <div class="hero-stage-left">
+          <span class="hero-stage-number">${stage.num}</span>
           <div>
-            <h4 class="stage-title">${escapeHtml(stage.title)}</h4>
-            <span class="stage-payee-tag">Payee: <strong>${escapeHtml(stage.payee)}</strong></span>
+            <h4 class="hero-stage-title">${escapeHtml(stage.title)}</h4>
+            <span class="text-sm text-muted">Payee: <strong>${escapeHtml(stage.payee)}</strong></span>
           </div>
         </div>
         <div class="flex-end gap-2">
-          <span class="stage-amount-badge">${formatRupees(stage.amount)}</span>
+          <span class="hero-stage-amount">${formatRupees(stage.amount)}</span>
           <span class="badge ${getStateBadgeClass(stage.state)}">${getStateLabel(stage.state)}</span>
         </div>
       </div>
 
-      <div class="stage-condition-box">
+      <div class="hero-stage-condition">
         "${escapeHtml(stage.condition)}"
       </div>
 
-      <div class="stage-footer-row">
-        <div class="stage-waiting-info">
+      <div class="stage-footer-row flex-between mt-2 pt-2">
+        <div class="stage-waiting-info text-sm text-muted">
           ${escapeHtml(waitingInfo)}
         </div>
         <div class="stage-actions-group">
@@ -1003,7 +1111,6 @@ function renderStageCard(stage, deal) {
         </div>
       </div>
 
-      <!-- Refusals appear directly under the clicked button! -->
       <div class="refusal-slot mt-2" id="refusal-stage-${stage.id}"></div>
     </div>
   `;
@@ -1052,6 +1159,40 @@ function attachStageButtonHandlers(deal) {
   });
 }
 
+// Sample Proof Vault Documents
+const sampleDocs = {
+  "1": {
+    badge: "Figma Spec",
+    title: "UI Tokens & Wireframe Specification",
+    filename: "design_tokens.fig",
+    milestone: "Stage 1 (Initial UI Prototype)",
+    submittedBy: "Aman",
+    hash: "0x7b819f02c448d1e2a013",
+    status: "Verified & Accepted",
+    desc: "Complete component design system, color tokens, and responsive layout specifications matching client requirements."
+  },
+  "2": {
+    badge: "GitHub PR",
+    title: "Frontend Build & Integration",
+    filename: "PR #104 Merged",
+    milestone: "Stage 2 (Development)",
+    submittedBy: "Aman",
+    hash: "0x3a48e219cb810fe912a7",
+    status: "CI Build Passed (18 commits)",
+    desc: "Complete implementation of client dashboard with liquid glass aesthetics, interactive tests passing 100%."
+  },
+  "3": {
+    badge: "Simulated Receipt",
+    title: "Simulated UPI Payment Reference",
+    filename: "simulated_upi.pdf",
+    milestone: "Vault Escrow Ingress",
+    submittedBy: "Riya",
+    hash: "0x98471203a1f9e830bd55",
+    status: "Deposited in Vault",
+    desc: "Pretend UPI payment reference UPI/AXIS/98471203/SETTL verifying funds ingress into the Hardhat EVM vault."
+  }
+};
+
 // Dashboard Buttons Handlers
 function setupDashboardHandlers() {
   document.getElementById("btn-withdraw-funds")?.addEventListener("click", async () => {
@@ -1070,6 +1211,207 @@ function setupDashboardHandlers() {
 
     await loadDealDashboard(state.currentDeal.id);
   });
+
+  // Proof Vault Fanned Doc Cards Preview
+  document.querySelectorAll(".fanned-doc-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const docId = card.getAttribute("data-doc");
+      openProofDocPreview(docId);
+    });
+  });
+
+  document.getElementById("btn-upload-proof")?.addEventListener("click", () => {
+    openUploadProofModal();
+  });
+
+  document.getElementById("btn-close-proof-modal")?.addEventListener("click", () => {
+    document.getElementById("proof-modal-backdrop")?.classList.add("hidden");
+  });
+
+  document.getElementById("btn-proof-modal-done")?.addEventListener("click", () => {
+    document.getElementById("proof-modal-backdrop")?.classList.add("hidden");
+  });
+
+  // Hero Card A AI Assistant input bar
+  document.getElementById("btn-hero-attach")?.addEventListener("click", () => {
+    openUploadProofModal();
+  });
+
+  const heroAiInput = document.getElementById("hero-ai-input");
+  const heroAiSubmit = document.getElementById("btn-hero-ai-submit");
+
+  heroAiSubmit?.addEventListener("click", () => handleHeroAiInput());
+  heroAiInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleHeroAiInput();
+    }
+  });
+}
+
+function openProofDocPreview(docId) {
+  const doc = sampleDocs[docId] || sampleDocs["1"];
+  const backdrop = document.getElementById("proof-modal-backdrop");
+  const titleEl = document.getElementById("proof-modal-title");
+  const bodyEl = document.getElementById("proof-modal-body");
+  const footerEl = document.getElementById("proof-modal-footer");
+
+  if (!backdrop || !bodyEl) return;
+
+  titleEl.textContent = `Proof Spec: ${doc.filename}`;
+  bodyEl.innerHTML = `
+    <div class="proof-preview-wrap">
+      <div class="flex-between">
+        <span class="badge badge-completed">${escapeHtml(doc.badge)}</span>
+        <span class="badge badge-success">${escapeHtml(doc.status)}</span>
+      </div>
+      <h3 class="mt-2">${escapeHtml(doc.title)}</h3>
+      <p class="text-muted text-sm mt-1">${escapeHtml(doc.desc)}</p>
+      <div class="proof-preview-meta">
+        <div class="proof-meta-row">
+          <span>Associated Milestone:</span>
+          <strong>${escapeHtml(doc.milestone)}</strong>
+        </div>
+        <div class="proof-meta-row">
+          <span>Submitted By:</span>
+          <strong>${escapeHtml(doc.submittedBy)}</strong>
+        </div>
+        <div class="proof-meta-row">
+          <span>Vault Hash:</span>
+          <code>${escapeHtml(doc.hash)}</code>
+        </div>
+        <div class="proof-meta-row">
+          <span>Storage:</span>
+          <span>Simulated IPFS / Hardhat Proof Log</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  footerEl.innerHTML = `
+    <button type="button" class="btn btn-secondary" id="btn-proof-modal-done">Close</button>
+  `;
+  document.getElementById("btn-proof-modal-done").onclick = () => backdrop.classList.add("hidden");
+
+  backdrop.classList.remove("hidden");
+}
+
+function openUploadProofModal() {
+  const backdrop = document.getElementById("proof-modal-backdrop");
+  const titleEl = document.getElementById("proof-modal-title");
+  const bodyEl = document.getElementById("proof-modal-body");
+  const footerEl = document.getElementById("proof-modal-footer");
+
+  if (!backdrop || !bodyEl || !state.currentDeal) return;
+
+  titleEl.textContent = "Upload Delivery Proof to Vault";
+  const stageOptions = state.currentDeal.stages.map(s => `
+    <option value="${s.id}">Stage ${s.num}: ${escapeHtml(s.title)} (${formatRupees(s.amount)})</option>
+  `).join("");
+
+  bodyEl.innerHTML = `
+    <div class="form-group mb-3">
+      <label class="input-label" for="upload-stage-select">Select Milestone</label>
+      <div class="custom-select-wrap">
+        <select id="upload-stage-select" class="custom-input">
+          ${stageOptions}
+        </select>
+      </div>
+    </div>
+    <div class="form-group mb-3">
+      <label class="input-label" for="upload-doc-title">Deliverable Title or Link</label>
+      <input type="text" id="upload-doc-title" class="custom-input" placeholder="e.g. GitHub PR #105 or Figma URL" value="Deployment verification link" />
+    </div>
+    <div class="proof-dropzone" id="proof-dropzone-box">
+      <div class="proof-dropzone-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div><strong>Drag & drop proof artifact</strong> or click to browse</div>
+      <span class="text-sm text-muted">Supports images, PDF specs, smart contracts, git commits</span>
+    </div>
+  `;
+
+  footerEl.innerHTML = `
+    <button type="button" class="btn btn-secondary" id="btn-cancel-upload-proof">Cancel</button>
+    <button type="button" class="btn btn-primary" id="btn-commit-upload-proof">Seal in Vault</button>
+  `;
+
+  document.getElementById("btn-cancel-upload-proof").onclick = () => backdrop.classList.add("hidden");
+  document.getElementById("btn-commit-upload-proof").onclick = () => {
+    const titleVal = document.getElementById("upload-doc-title").value.trim() || "New Proof Artifact";
+    backdrop.classList.add("hidden");
+
+    // Update count in Proof Vault
+    const countEl = document.getElementById("proof-docs-count");
+    if (countEl) {
+      countEl.textContent = "4 items";
+    }
+
+    showAiToast(`New delivery proof "${escapeHtml(titleVal)}" uploaded by ${state.actingPerson} and sealed in Escrow Vault.`);
+  };
+
+  backdrop.classList.remove("hidden");
+}
+
+function handleHeroAiInput() {
+  const input = document.getElementById("hero-ai-input");
+  if (!input) return;
+  const val = input.value.trim().toLowerCase();
+  if (!val) return;
+
+  const deal = state.currentDeal;
+  input.value = "";
+
+  if (!deal) return;
+
+  // Check for action keywords
+  const activeStage = deal.stages.find(s => s.state === "Completed" || s.state === "Pending" || s.state === "Disputed") || deal.stages[0];
+
+  if (val.includes("approve")) {
+    const btn = document.querySelector(`.btn-stage-action[data-action="approve"][data-stage="${activeStage.id}"]`);
+    if (btn) btn.click();
+    showAiToast(`Action triggered: Requested approval for Stage ${activeStage.num} (${activeStage.title}) as ${state.actingPerson}.`);
+  } else if (val.includes("done") || val.includes("complete") || val.includes("finish")) {
+    const btn = document.querySelector(`.btn-stage-action[data-action="done"][data-stage="${activeStage.id}"]`);
+    if (btn) btn.click();
+    showAiToast(`Action triggered: Marked Stage ${activeStage.num} done as ${state.actingPerson}.`);
+  } else if (val.includes("dispute")) {
+    const btn = document.querySelector(`.btn-stage-action[data-action="dispute"][data-stage="${activeStage.id}"]`);
+    if (btn) btn.click();
+    showAiToast(`Action triggered: Disputed Stage ${activeStage.num} as ${state.actingPerson}.`);
+  } else if (val.includes("refund")) {
+    const btn = document.querySelector(`.btn-stage-action[data-action="refund_payers"][data-stage="${activeStage.id}"]`);
+    if (btn) btn.click();
+    showAiToast(`Arbiter Action: Requested refund to payers for Stage ${activeStage.num}.`);
+  } else if (val.includes("pay") || val.includes("release")) {
+    const btn = document.querySelector(`.btn-stage-action[data-action="pay_payee"][data-stage="${activeStage.id}"]`);
+    if (btn) btn.click();
+    showAiToast(`Arbiter Action: Requested payment release to payee for Stage ${activeStage.num}.`);
+  } else if (val.includes("withdraw")) {
+    document.getElementById("btn-matrix-withdraw")?.click();
+    showAiToast(`Withdrawal requested for ${state.actingPerson}.`);
+  } else if (val.includes("deposit")) {
+    document.getElementById("btn-matrix-deposit")?.click();
+    showAiToast(`Simulated deposit initiated for ${state.actingPerson}.`);
+  } else if (val.includes("judge") || val.includes("arbiter")) {
+    showAiToast(`Arbiter for this deal is ${deal.judge}. Disputes are settled through the Arbiter Panel.`);
+  } else if (val.includes("status") || val.includes("next")) {
+    const waiting = computeClientWaitingFor(deal);
+    showAiToast(`Deal Phase: ${deal.phase}. Next step: ${waiting}.`);
+  } else {
+    showAiToast(`AI Agreement Assistant: Registered instruction "${escapeHtml(val)}" for Stage ${activeStage.num}. Verification conditions: "${escapeHtml(activeStage.condition)}".`);
+  }
+}
+
+function showAiToast(message) {
+  const slot = document.getElementById("hero-ai-toast-slot");
+  if (!slot) return;
+  slot.innerHTML = `
+    <div class="hero-ai-toast">
+      <span><strong>AI Assistant:</strong> ${message}</span>
+      <button type="button" class="btn-text-sm" onclick="this.parentElement.remove()">✕</button>
+    </div>
+  `;
 }
 
 function computeClientWaitingFor(deal) {
