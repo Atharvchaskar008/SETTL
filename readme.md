@@ -277,8 +277,8 @@ Stage numbers in the API count from 1.
 | Part | What it does |
 |---|---|
 | **The bar** | Type a deal in plain words and press Enter. Four one-click examples sit under it. The "AI" switch chooses between the model and the offline reader |
-| **The workspace** | The deals you organise or are part of, each with its amount, status and progress |
-| **The open deal** | Four steps (Check, Sign, Fund, Pay), the one thing you can do next, the people, the stages, the original words, and the activity log with every refusal |
+| **The workspaces** | The deals you organise or are part of, each with its amount, status and progress. Every workspace has its own link |
+| **The open workspace** | Four steps (Check, Sign, Fund, Pay) and the one thing you can do next, then three tabs. **Workspace**: the escrow totals, each person with what they have in escrow, and the stages. **Agreement**: the whole deal in plain sentences, what happens if someone breaks it, the attempts refused so far, who has signed, and the original words. **Activity**: every step and every refusal |
 
 How it behaves:
 
@@ -306,7 +306,7 @@ Demo people exist so the product can be shown without any set-up. Wallet people 
 
 1. **Signs in.** The wallet signs a short message that proves the address is theirs. It costs nothing and moves no money. A first sign-in also takes their name. On the local chain, a wallet that arrives empty is given test money.
 2. **Is added by address, if they have not signed in yet.** An organiser can put a name against a wallet address so the deal can name that person. This gives nobody any power: to act, the person still has to sign in with the wallet that owns the address.
-3. **Agrees by signature.** To agree to a deal, they sign a message carrying the deal's fingerprint. The signature is stored with the deal, and anyone can check it against their address. Editing the checklist changes the fingerprint, so old signatures stop fitting and are thrown away.
+3. **Agrees by signature.** To agree to a deal, they sign a message that lists every member's wallet address and carries the deal's fingerprint. The fingerprint covers the text, the checklist and those addresses, so the vault can only be created for the accounts everyone signed for. The signature is stored with the deal, and anyone can check it against their address. Editing the checklist changes the fingerprint, so old signatures stop fitting and are thrown away.
 4. **Creates the vault, if they are the organiser.** The server builds the creation transaction from the agreed terms and the organiser's wallet sends it. The deal is locked only when that exact transaction, sent by the organiser, is found on the chain. A creation sent by anyone else, or one with different terms, is refused.
 5. **Sends their own transactions.** For a deposit or a stage action, the server first asks the chain whether the contract would accept it from that address. If not, it answers with the plain reason and the wallet is never opened. If so, it hands back the transaction, and the person's wallet signs and sends it.
 
@@ -327,6 +327,22 @@ On the local chain the server lets through only what a wallet needs: reading the
 
 The server starts only on a known test network: Sepolia, Holesky, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy or a local chain. Pointed at any other network, it stops with an error.
 
+### Live on Sepolia
+
+A deal has been run from start to finish on the Sepolia test network, with three MetaMask accounts and test money only.
+
+| | |
+|---|---|
+| Vault | `0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F` |
+| On the explorer | https://sepolia.etherscan.io/address/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F |
+| Source, verified as an exact match | https://repo.sourcify.dev/11155111/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F |
+| What was done | The organiser's wallet created the vault, the payer deposited, the payee marked the stage done, the payer approved, and the payee withdrew. Nothing is left in the vault and the settlement adds up |
+
+Two things this run taught us:
+
+- **A wallet does not always send a transaction straight to the vault.** MetaMask's optional "added protection" routes it through a contract of its own. The server now takes who did what from the vault's own events, so it records a step however it arrived, including steps taken on the contract without the server at all.
+- **Creating a vault is expensive on Sepolia:** about 13.8 million gas, several times what the local chain charges. With MetaMask's default fee that was about 0.02 test ETH. The dashboard now asks for a smaller fee.
+
 ### Trying it with MetaMask
 
 [SETUP.md](SETUP.md) has the full steps for someone who has never used a wallet, including where to get test ETH. In short:
@@ -340,7 +356,7 @@ Restarting the server resets the local chain. If transactions then fail, use Met
 
 Set `REQUIRE_WALLET=true` to switch demo people off on the local chain too, so every action needs a wallet session.
 
-**What has been tested:** the whole flow on the local chain, with real keys signing real transactions through `/rpc`, in [server/test/wallet.test.js](server/test/wallet.test.js). **What has not:** the page has not been driven by MetaMask itself, and no transaction has yet been sent on a public test network.
+**What has been tested:** the whole flow on the local chain, with real keys signing real transactions through `/rpc`, in [server/test/wallet.test.js](server/test/wallet.test.js); and one plain deal on Sepolia through the dashboard with MetaMask, described above. **What has not:** the stake, dispute, cancel and leave paths have not been run on Sepolia, and a vault created with MetaMask's "added protection" switched on would not be recognised.
 
 ## Project layout
 
@@ -469,8 +485,8 @@ With no key, the offline reader is used and everything else works the same.
 | Server: every route in the table above | Done. 30 API tests pass |
 | Wallet sign-in, people added by address, signed agreements, wallet-created vaults, wallet-sent transactions | Done. 37 tests pass, using real keys through `/rpc` on the local chain |
 | End-to-end demo (`npm run demo`) | Done before the latest server changes. Not re-run since |
-| Dashboard (`/`) | Written. In a headless browser, with demo people: the page loads, a typed deal becomes a draft in the workspace, missing people are added, and Confirm and Sign work. The later steps, the wallet path and the attack lab screen have not been run through the page yet, and it has not been checked by eye in a real browser |
-| Public test network (`npm run testnet`) | Written. Not yet started against Sepolia, and no transaction has been sent there |
+| Dashboard (`/`) | Done. Run through the real page in a headless browser: a plain deal with a dispute, a deal with a stake where the payee leaves, the agreement tab, the attack lab, and the whole wallet path with three keys. Also used by hand with MetaMask on Sepolia |
+| Public test network (`npm run testnet`) | One plain deal run end to end on Sepolia, and the vault's source verified. The stake, dispute, cancel and leave paths have not been run there |
 | Attack lab on a public network | Written. Not yet run |
 | Earlier dashboard (`/old`) | Was run end to end in a headless browser when it was served at `/`. Not re-checked since it moved |
 | Wallet console page (`/wallet`) | Written before the organiser's wallet began creating the vault. Its Lock button has not been updated for that; use the dashboard |
@@ -484,7 +500,9 @@ With no key, the offline reader is used and everything else works the same.
 - **People still decide.** A person approves the work and a person judges a dispute. Settl does not decide whether work is good.
 - **It does not replace a legal contract.**
 - **Demo people have no login.** The server acts as whichever demo person a request names. Wallet people are authenticated by signature and sign their own transactions; `REQUIRE_WALLET=true` allows only them.
-- **A name is tied to an address by whoever adds it first.** Check the address shown next to each person before signing a deal.
+- **A name is tied to an address by whoever adds it first.** Each member's address is shown next to their name and listed in the message they sign, so check it before signing.
+- **Creating a vault costs a lot of gas.** Each deal deploys the whole contract. On a network with real fees, a factory that makes light copies of one vault would be needed.
+- **A vault must be created by a transaction sent straight from the organiser's wallet.** One routed through another contract, as MetaMask's "added protection" does, is not recognised.
 - **A session is a token held in memory.** It ends when the server restarts, and it is not tied to a browser or device.
 - **The local chain lives in memory.** Restarting the server clears every deal and vault. On a public test network the vaults stay and the deals are kept in a file.
 - **On a public test network every step costs a little test coin for gas**, so each person needs some, the payees and the judge included.
