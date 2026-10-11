@@ -14,6 +14,7 @@ import Limits from './Limits';
 import Roadmap from './Roadmap';
 import ClosingCTA from './ClosingCTA';
 import RunDemoButton from './RunDemoButton';
+import { DASHBOARD_URL } from './dashboard';
 
 const App = () => {
   const canvasRef = useRef(null);
@@ -443,7 +444,7 @@ void main() {
             </div>
 
             {/* Run the demo button */}
-            <RunDemoButton href="#demo" onClick={(e) => scrollToSection(e, '#demo')}>
+            <RunDemoButton href={DASHBOARD_URL}>
               Run the demo
             </RunDemoButton>
 
@@ -500,7 +501,7 @@ void main() {
                 Docs
               </a>
               <div className="pt-2">
-                <RunDemoButton href="#demo" onClick={(e) => scrollToSection(e, '#demo')}>
+                <RunDemoButton href={DASHBOARD_URL}>
                   Run the demo
                 </RunDemoButton>
               </div>

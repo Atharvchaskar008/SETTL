@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { DASHBOARD_URL } from './dashboard';
 
 const ClosingCTA = () => {
   return (
@@ -7,7 +8,7 @@ const ClosingCTA = () => {
       <Content>
         <Headline>Stop trusting. Start settling.</Headline>
         <ButtonGroup>
-          <PrimaryButton href="#demo">Run the demo</PrimaryButton>
+          <PrimaryButton href={DASHBOARD_URL}>Run the demo</PrimaryButton>
           <SecondaryButton href="https://github.com/Atharvchaskar008/Vortexa-3.0.git" target="_blank" rel="noopener noreferrer">
             Read the code
           </SecondaryButton>

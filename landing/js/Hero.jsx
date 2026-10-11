@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { DASHBOARD_URL } from './dashboard';
 
 const Hero = () => {
   return (
@@ -11,7 +12,7 @@ const Hero = () => {
           <SubLine>Money moves only when the work is approved. No middleman. No vague terms.</SubLine>
 
           <ButtonGroup>
-            <PrimaryButton href="#demo">Try a live deal</PrimaryButton>
+            <PrimaryButton href={DASHBOARD_URL}>Try a live deal</PrimaryButton>
             <SecondaryButton href="#security">Watch the attacks fail</SecondaryButton>
           </ButtonGroup>
 

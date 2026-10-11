@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Settl: staged payments locked in a tested escrow contract (VORTEXA 3.0, B-03 MilestoneVault)",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "landing": "vite build && hardhat compile && node server/src/index.js",
     "preview": "vite preview",
     "compile": "hardhat compile",
     "test": "hardhat test && node --test \"server/test/*.test.js\"",

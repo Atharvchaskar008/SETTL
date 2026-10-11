@@ -56,6 +56,8 @@ async function createApp({ env = process.env, storePath } = {}) {
   app.use(express.static(path.join(__dirname, "../../web")));
   app.use("/old", express.static(path.join(__dirname, "../../web")));
   app.use("/site", express.static(path.join(__dirname, "../../site")));
+  // The landing page, once built with `npm run build`. Its buttons open the dashboard at /.
+  app.use("/landing", express.static(path.join(__dirname, "../../dist")));
   // The wallet console, and the browser build of ethers it uses, served locally so it works offline.
   app.use("/wallet", express.static(path.join(__dirname, "../../wallet")));
   app.get("/vendor/ethers.js", (request, response) => {
