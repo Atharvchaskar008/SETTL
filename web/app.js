@@ -439,11 +439,12 @@ async function loadDealDashboard(dealId) {
 function renderDealDashboard(deal, metaData = null) {
   if (!deal) return;
 
-  // Header Titles
+  // 1. Header Titles & Amounts
   const dashTitle = document.getElementById("dash-deal-title");
-  const capsuleTitle = document.getElementById("capsule-deal-title");
   if (dashTitle) dashTitle.textContent = deal.title;
-  if (capsuleTitle) capsuleTitle.textContent = deal.title;
+
+  const totalEl = document.getElementById("dash-money-total");
+  if (totalEl) totalEl.textContent = formatRupees(deal.totalAmount);
 
   const phaseBadge = document.getElementById("dash-phase-badge");
   if (phaseBadge) {
@@ -451,38 +452,190 @@ function renderDealDashboard(deal, metaData = null) {
     phaseBadge.textContent = deal.phase;
   }
 
-  // Participants Chips
-  const payerNames = deal.payers.map(p => p.person).join(", ");
-  const payeeNames = [...new Set(deal.stages.map(s => s.payee))].join(", ");
-  const participantsBox = document.getElementById("dash-participants-meta");
-  if (participantsBox) {
-    participantsBox.innerHTML = `
-      <span class="participant-chip chip-client">Client: <strong>${escapeHtml(payerNames)}</strong></span>
-      <span class="participant-chip chip-provider">Provider: <strong>${escapeHtml(payeeNames)}</strong></span>
-      <span class="participant-chip chip-arbiter">Arbiter: <strong>${escapeHtml(deal.judge)}</strong></span>
-    `;
-  }
+  // Participants tags in hero
+  const clientName = deal.payers.map(p => p.person).join(", ");
+  const providerName = [...new Set(deal.stages.map(s => s.payee))].join(", ");
+  const tagClient = document.getElementById("tag-client-name");
+  const tagProvider = document.getElementById("tag-provider-name");
+  const tagArbiter = document.getElementById("tag-arbiter-name");
+  if (tagClient) tagClient.textContent = clientName || "Client";
+  if (tagProvider) tagProvider.textContent = providerName || "Provider";
+  if (tagArbiter) tagArbiter.textContent = deal.judge || "Meera";
 
-  // Active Milestone in Card A
-  if (!state.activeStageId || !deal.stages.some(s => s.id === state.activeStageId)) {
-    const focusStage = deal.stages.find(s => s.state === "Completed" || s.state === "Disputed" || s.state === "Pending") || deal.stages[0];
-    state.activeStageId = focusStage ? focusStage.id : "stg-1";
-  }
-
-  const activeStage = deal.stages.find(s => s.id === state.activeStageId) || deal.stages[0];
-  renderActiveStageCard(activeStage, deal);
-
-  // Card B: Stacked Cards (Pending Approvals & Disputes)
-  renderActionStackCards(deal);
-
-  // Card C: Overview & Arbiter Hub (Metrics + 3x3 Grid + Money Bar)
-  renderVaultAndMatrix(deal, metaData);
-
-  // Card D: Proof Vault Hash
+  // Fingerprint / Vault Hash
   const hashEl = document.getElementById("proof-vault-hash");
   if (hashEl) {
-    hashEl.textContent = `Hash: ${(deal.agreementFingerprint || "0x8f4b2ae").slice(0, 10)}...`;
+    hashEl.textContent = (deal.vaultAddress || deal.agreementFingerprint || "0x5FbD...0aa3").slice(0, 10) + "...";
   }
+
+  // 2. Lifecycle Stepper: Check → Sign → Fund → Pay
+  const steps = ["check", "sign", "fund", "pay"];
+  let activeIdx = 3;
+  if (deal.phase === "Review") activeIdx = 0;
+  else if (deal.phase === "Agree") activeIdx = 1;
+  else if (deal.phase === "Funding") activeIdx = 2;
+  else if (deal.phase === "Active") activeIdx = 3;
+  else if (deal.phase === "Closed") activeIdx = 4;
+
+  document.querySelectorAll(".lifecycle-step").forEach((stepEl) => {
+    const sName = stepEl.getAttribute("data-step");
+    const idx = steps.indexOf(sName);
+    stepEl.classList.remove("passed", "active");
+    if (idx < activeIdx) stepEl.classList.add("passed");
+    else if (idx === activeIdx) stepEl.classList.add("active");
+  });
+
+  // 3. Next Action Banner & Progress Count
+  const waitingEl = document.getElementById("dash-waiting-for");
+  const nextDescEl = document.getElementById("dash-next-action-desc");
+  const settledText = document.getElementById("dash-stages-settled-text");
+
+  if (waitingEl) waitingEl.textContent = `Waiting for ${deal.waitingFor || 'participants'}`;
+  if (settledText) settledText.textContent = deal.stagesSettled || "1 of 3";
+
+  const pendingStage = deal.stages.find(s => s.state === "Pending");
+  const submittedStage = deal.stages.find(s => s.state === "Completed");
+  const disputedStage = deal.stages.find(s => s.state === "Disputed");
+
+  let nextActionDesc = "All agreed stages settled.";
+  if (disputedStage) {
+    nextActionDesc = `Next action: Arbiter ${deal.judge} resolves Stage ${disputedStage.num} dispute`;
+  } else if (submittedStage) {
+    nextActionDesc = `Next action: Client review & approval for Stage ${submittedStage.num}`;
+  } else if (pendingStage) {
+    nextActionDesc = `Next action: ${pendingStage.payee} submits proof for Stage ${pendingStage.num}`;
+  } else if (deal.phase === "Funding") {
+    nextActionDesc = `Next action: Payer completes simulated escrow deposit`;
+  }
+  if (nextDescEl) nextDescEl.textContent = nextActionDesc;
+
+  // 4. Compact Escrow Summary Bar in Hero
+  renderEscrowSummaryBar(deal, metaData);
+
+  // 5. Render Milestones Operational Timeline Panel
+  renderMilestonesTimeline(deal);
+
+  // 6. Render Workspace Collaboration Panel Data
+  renderWorkspaceCollabData(deal);
+
+  // 7. Render Agreement Details & Arbiter Resolution Panel
+  renderAgreementDetailsPanel(deal);
+}
+
+function renderEscrowSummaryBar(deal, metaData) {
+  const recon = metaData?.reconciliation || calculateClientRecon(deal);
+  const mLocked = document.getElementById("metric-val-locked");
+  const mPaid = document.getElementById("metric-val-paidout");
+  const yourMoney = document.getElementById("your-money-amount");
+  const reconBadge = document.getElementById("dash-reconcile-badge");
+
+  if (mLocked) mLocked.textContent = formatRupees(recon.locked);
+  if (mPaid) mPaid.textContent = formatRupees(recon.paidOut);
+  if (yourMoney) {
+    yourMoney.textContent = formatRupees(deal.withdrawable?.[state.actingPerson] || 0);
+  }
+  if (reconBadge) {
+    reconBadge.textContent = recon.reconciles ? "Balanced" : "Discrepancy";
+    reconBadge.className = `badge ${recon.reconciles ? 'badge-balanced' : 'badge-danger'}`;
+  }
+}
+
+function renderMilestonesTimeline(deal) {
+  const container = document.getElementById("milestones-timeline-list");
+  const summaryPill = document.getElementById("milestones-header-summary");
+  if (!container || !deal.stages) return;
+
+  if (summaryPill) {
+    summaryPill.textContent = `${deal.stages.length} Milestones • ${formatRupees(deal.totalAmount)}`;
+  }
+
+  const isPayer = deal.payers.some(p => p.person === state.actingPerson);
+  const isJudge = deal.judge === state.actingPerson;
+  const tryAll = state.tryAnything;
+
+  container.innerHTML = deal.stages.map((stage, idx) => {
+    const isPayee = stage.payee === state.actingPerson;
+    const isLast = idx === deal.stages.length - 1;
+    const isFocus = stage.id === state.activeStageId;
+
+    // Generate Role-Appropriate Operational Action Buttons
+    let btns = "";
+    if (tryAll) {
+      btns = `
+        <button type="button" class="btn-stage-op primary btn-stage-action" data-action="done" data-stage="${stage.id}">Submit Proof</button>
+        <button type="button" class="btn-stage-op btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve</button>
+        <button type="button" class="btn-stage-op danger btn-stage-action" data-action="dispute" data-stage="${stage.id}">Dispute</button>
+      `;
+    } else {
+      if (stage.state === "Pending" && isPayee) {
+        btns = `<button type="button" class="btn-stage-op primary btn-stage-action" data-action="done" data-stage="${stage.id}">Submit Proof</button>`;
+      } else if (stage.state === "Completed" && isPayer) {
+        btns = `
+          <button type="button" class="btn-stage-op primary btn-stage-action" data-action="approve" data-stage="${stage.id}">Approve Milestone</button>
+          <button type="button" class="btn-stage-op danger btn-stage-action" data-action="dispute" data-stage="${stage.id}">Raise Dispute</button>
+        `;
+      } else if (stage.state === "Disputed" && isJudge) {
+        btns = `
+          <button type="button" class="btn-stage-op primary btn-stage-action" data-action="pay_payee" data-stage="${stage.id}">Release to Payee</button>
+          <button type="button" class="btn-stage-op danger btn-stage-action" data-action="refund_payers" data-stage="${stage.id}">Refund Client</button>
+        `;
+      }
+    }
+
+    const docMock = sampleDocs[String((idx % 3) + 1)] || sampleDocs["1"];
+
+    return `
+      <div class="milestone-timeline-item ${isFocus ? 'active-milestone-node' : ''}" data-stage-id="${stage.id}" id="milestone-node-${stage.id}">
+        <div class="timeline-left-node">
+          <span class="milestone-num-circle">${stage.num}</span>
+          ${!isLast ? '<span class="timeline-vertical-stem"></span>' : ''}
+        </div>
+        <div class="timeline-body-content">
+          <div class="milestone-title-row flex-between">
+            <h4 class="milestone-title-text">${escapeHtml(stage.title)}</h4>
+            <span class="milestone-amount-text">${formatRupees(stage.amount)}</span>
+          </div>
+          <p class="milestone-condition-text">"${escapeHtml(stage.condition)}"</p>
+          
+          <div class="milestone-meta-pills-row flex-align-center gap-2 mt-1">
+            <span class="meta-tag assignee">${escapeHtml(stage.payee)} (Provider)</span>
+            <span class="badge ${getStateBadgeClass(stage.state)}">${getStateLabel(stage.state)}</span>
+            <span class="evidence-pill-link" data-doc-id="${(idx % 3) + 1}" title="Inspect proof spec">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <span>${escapeHtml(docMock.filename)}</span>
+            </span>
+          </div>
+
+          ${btns ? `<div class="milestone-actions-toolbar">${btns}</div>` : ''}
+          <div class="refusal-slot" id="refusal-${stage.id}"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Bind milestone buttons
+  container.querySelectorAll(".btn-stage-action").forEach(btn => {
+    btn.addEventListener("click", () => handleStageAction(btn, deal));
+  });
+
+  // Bind evidence inspection clicks
+  container.querySelectorAll(".evidence-pill-link").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const docId = link.getAttribute("data-doc-id");
+      openProofDocPreview(docId);
+    });
+  });
+
+  // Click milestone row to set active
+  container.querySelectorAll(".milestone-timeline-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const stageId = item.getAttribute("data-stage-id");
+      state.activeStageId = stageId;
+      container.querySelectorAll(".milestone-timeline-item").forEach(i => i.classList.remove("active-milestone-node"));
+      item.classList.add("active-milestone-node");
+    });
+  });
 }
 
 // Render Card A: Center Active Milestone Showcase
