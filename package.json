@@ -9,6 +9,7 @@
     "test:contract": "hardhat test",
     "test:server": "hardhat compile && node --test \"server/test/*.test.js\"",
     "start": "hardhat compile && node server/src/index.js",
+    "testnet": "hardhat compile && node server/src/index.js --testnet",
     "demo": "hardhat compile && node scripts/demo.js",
     "score": "node scripts/score.js"
   },

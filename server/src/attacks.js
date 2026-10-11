@@ -2,10 +2,15 @@
 // reports what actually happened. The verdicts are computed from the vault's
 // state after the attempt; nothing here is a canned answer.
 
+const path = require("node:path");
+const { execFile } = require("node:child_process");
 const express = require("express");
 const chain = require("./chain");
 
 const { ethers } = chain;
+
+// Printed before the result when this file is run on its own, so the result can be found in the output.
+const RESULT_MARK = "ATTACK-RESULT:";
 
 const STAGE = 10000; // rupees per stage; every attack vault has three stages
 const TOTAL = 3 * STAGE;
@@ -18,7 +23,7 @@ async function castOf() {
 }
 
 async function freshVault(cast, { contract = "MilestoneVault", firstPayee = cast.payee.address } = {}) {
-  const address = await chain.deployVault({
+  const { address } = await chain.deployVault({
     contract,
     payers: [{ address: cast.payer.address, share: TOTAL }],
     judge: cast.judge.address,
@@ -183,6 +188,22 @@ const ATTACKS = {
   },
 };
 
+/** Runs one attack in a separate process that has its own in-memory chain, and returns its result. */
+function runOnLocalChain(name) {
+  const env = { ...process.env, HARDHAT_NETWORK: "hardhat", ATTACK: name };
+  delete env.RUPEE_WEI;
+  return new Promise((resolve, reject) => {
+    execFile(process.execPath, [__filename], { env, cwd: path.join(__dirname, "..", ".."), timeout: 120000 }, (error, stdout) => {
+      if (error) return reject(new Error(`The attack could not be run: ${error.message}`));
+      try {
+        resolve(JSON.parse(stdout.slice(stdout.indexOf(RESULT_MARK) + RESULT_MARK.length)));
+      } catch (unreadable) {
+        reject(new Error("The attack ran but its result could not be read."));
+      }
+    });
+  });
+}
+
 function attackRoutes() {
   const router = express.Router();
 
@@ -198,7 +219,9 @@ function attackRoutes() {
       if (!attack) {
         return response.status(404).json({ error: `There is no attack called ${request.params.name}.` });
       }
-      const result = await attack.run();
+      // The lab needs accounts it can act with and vaults it can create freely, which
+      // only a local chain has. On a public network each attack runs on a local chain of its own.
+      const result = chain.isLocal ? await attack.run() : await runOnLocalChain(request.params.name);
       response.json({ attack: request.params.name, title: attack.title, explanation: attack.explanation, ...result });
     } catch (error) {
       next(error);
@@ -209,3 +232,17 @@ function attackRoutes() {
 }
 
 module.exports = { attackRoutes, ATTACKS };
+
+// Run directly, this file carries out the attack named in ATTACK and prints its result.
+if (require.main === module) {
+  ATTACKS[process.env.ATTACK]
+    .run()
+    .then((result) => {
+      console.log(RESULT_MARK + JSON.stringify(result));
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error(error.message);
+      process.exit(1);
+    });
+}

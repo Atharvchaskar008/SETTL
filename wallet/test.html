@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Settl backend tester</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 16px; max-width: 900px; }
+  input, textarea { font: inherit; padding: 4px; }
+  textarea { width: 100%; height: 70px; }
+  button { margin: 2px; padding: 4px 8px; cursor: pointer; }
+  fieldset { margin: 8px 0; border: 1px solid #ccc; }
+  pre { background: #111; color: #9f9; padding: 10px; overflow: auto; max-height: 420px; white-space: pre-wrap; }
+</style>
+
+<h3>Settl backend tester</h3>
+<p>Acting as <input id="person" value="Riya" size="12">
+   Deal <input id="deal" value="deal-1" size="8">
+   Stage <input id="stage" value="1" size="2"></p>
+
+<fieldset><legend>Set up</legend>
+  <input id="names" value="Riya, Aman, Meera" size="30">
+  <button data-m="POST" data-p="/people" data-b="names">Add people</button>
+  <button data-m="GET" data-p="/people">People</button>
+  <button data-m="GET" data-p="/health">Health</button>
+  <button data-m="POST" data-p="/reset">Reset</button>
+</fieldset>
+
+<fieldset><legend>New deal</legend>
+  <textarea id="text">Riya pays ₹30,000 for a website. Aman is paid ₹30,000 when the site is live. Meera settles any dispute.</textarea>
+  <button data-m="POST" data-p="/deals/draft" data-b="draft">Draft</button>
+  <button data-m="POST" data-p="/deals/draft" data-b="offline">Draft (AI off)</button>
+  <button data-m="POST" data-p="/deals/:id/confirm">Confirm</button>
+  <button data-m="POST" data-p="/deals/:id/agree">Agree</button>
+  <button data-m="POST" data-p="/deals/:id/lock">Lock</button>
+</fieldset>
+
+<fieldset><legend>Money and stages</legend>
+  <button data-m="POST" data-p="/deals/:id/deposit">Deposit</button>
+  <button data-m="POST" data-p="/deals/:id/stake">Stake</button>
+  <button data-m="POST" data-p="/deals/:id/stages/:n/complete">Mark done</button>
+  <button data-m="POST" data-p="/deals/:id/stages/:n/approve">Approve</button>
+  <button data-m="POST" data-p="/deals/:id/stages/:n/dispute">Dispute</button>
+  <button data-m="POST" data-p="/deals/:id/stages/:n/resolve" data-b="pay">Judge: pay</button>
+  <button data-m="POST" data-p="/deals/:id/stages/:n/resolve" data-b="refund">Judge: refund</button>
+  <button data-m="POST" data-p="/deals/:id/withdraw">Withdraw</button>
+  <button data-m="POST" data-p="/deals/:id/leave">Leave</button>
+  <button data-m="POST" data-p="/deals/:id/cancel">Cancel</button>
+</fieldset>
+
+<fieldset><legend>Look</legend>
+  <button data-m="GET" data-p="/deals">All deals</button>
+  <button data-m="GET" data-p="/deals/:id">Deal</button>
+  <button data-m="GET" data-p="/deals/:id/history">History</button>
+  <button data-m="GET" data-p="/deals/:id/summary">Summary</button>
+  <button data-m="POST" data-p="/attacks/second-release">Attack: second release</button>
+  <button data-m="POST" data-p="/attacks/unauthorised-refund">Attack: refund</button>
+  <button data-m="POST" data-p="/attacks/out-of-order">Attack: order</button>
+  <button data-m="POST" data-p="/attacks/re-entrancy">Attack: re-entrancy</button>
+</fieldset>
+
+<pre id="out">Click a button. The server's answer appears here.</pre>
+
+<script>
+  const $ = (id) => document.getElementById(id).value.trim();
+  const bodies = {
+    names: () => ({ names: $("names").split(",").map((n) => n.trim()).filter(Boolean) }),
+    draft: () => ({ person: $("person"), text: $("text") }),
+    offline: () => ({ person: $("person"), text: $("text"), offline: true }),
+    pay: () => ({ person: $("person"), decision: "pay" }),
+    refund: () => ({ person: $("person"), decision: "refund" }),
+  };
+  document.querySelectorAll("button").forEach((button) => button.addEventListener("click", async () => {
+    const method = button.dataset.m;
+    const path = button.dataset.p.replace(":id", $("deal")).replace(":n", $("stage"));
+    const body = method === "GET" ? undefined : (bodies[button.dataset.b] || (() => ({ person: $("person") })))();
+    const response = await fetch(path, { method, headers: { "content-type": "application/json" }, body: body && JSON.stringify(body) });
+    const data = await response.json().catch(() => ({}));
+    if (data.deal && data.deal.id) document.getElementById("deal").value = data.deal.id;
+    document.getElementById("out").textContent = `${method} ${path}  ->  ${response.status}\n\n${JSON.stringify(data, null, 2)}`;
+  }));
+</script>

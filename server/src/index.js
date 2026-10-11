@@ -1,19 +1,33 @@
 require("dotenv").config();
 
+// With CHAIN_RPC_URL set, Settl runs on that public test network instead of the
+// chain inside this process. "--testnet" (npm run testnet) does the same with
+// Sepolia's public address. This has to be decided before the chain is loaded.
+if (process.argv.includes("--testnet") && !process.env.CHAIN_RPC_URL) {
+  process.env.CHAIN_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+}
+if (process.env.CHAIN_RPC_URL && !process.env.HARDHAT_NETWORK) process.env.HARDHAT_NETWORK = "testnet";
+
 const express = require("express");
 const { createApp } = require("./app");
 const { rpcRoutes } = require("./rpc");
+const chain = require("./chain");
 
 const port = Number(process.env.PORT) || 3000;
 const rpcPort = Number(process.env.RPC_PORT) || 8545;
 
 createApp()
-  .then(({ app }) => {
+  .then(async ({ app }) => {
+    const network = await chain.testNetwork();
     app.listen(port, () => {
       console.log(`Settl is running at http://localhost:${port}`);
-      console.log(`Wallet console: http://localhost:${port}/wallet`);
-      console.log("All funds are simulated. The chain lives in memory and resets on restart.");
+      if (chain.isLocal) {
+        console.log("All funds are simulated. The chain lives in memory and resets on restart.");
+      } else {
+        console.log(`Connected to ${network.name} (chain ID ${network.chainId}). Test money only; every transaction comes from a wallet.`);
+      }
     });
+    if (!chain.isLocal) return;
 
     // Wallets usually expect a local chain at port 8545, so the same chain is
     // offered there too. Port 3000's /rpc works whether or not this one starts.

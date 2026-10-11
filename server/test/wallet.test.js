@@ -78,6 +78,36 @@ describe("wallet sign-in", () => {
     assert.equal(result.body.rule, "bad-signature");
   });
 
+  test("a person added by wallet address signs in later as that person, and gets pretend funds then", async () => {
+    const wallet = ethers.Wallet.createRandom();
+    const added = await api.post("/people", { name: "Invited Ishaan", address: wallet.address });
+    assert.equal(added.status, 201);
+    assert.deepEqual(added.body.added, [{ name: "Invited Ishaan", kind: "wallet", address: wallet.address }]);
+    assert.equal(await hre.ethers.provider.getBalance(wallet.address), 0n);
+
+    // Being added gives nobody the power to act as them.
+    const typed = await api.post("/deals/draft", { text: fixture("02-freelance-website.txt"), person: "Invited Ishaan" });
+    assert.equal(typed.body.rule, "sign-in-required");
+
+    const signedIn = await signIn(api, wallet);
+    assert.equal(signedIn.status, 200);
+    assert.equal(signedIn.body.person.name, "Invited Ishaan");
+    assert.equal(await hre.ethers.provider.getBalance(wallet.address), hre.ethers.parseEther("10000"));
+  });
+
+  test("an address or a name can be added only once, and a built-in account never", async () => {
+    const wallet = ethers.Wallet.createRandom();
+    const [, , , , , , builtIn] = await hre.ethers.getSigners();
+    assert.equal((await api.post("/people", { name: "First Farah", address: wallet.address })).status, 201);
+    assert.equal((await api.post("/people", { name: "Second Farah", address: wallet.address })).body.rule, "address-in-use");
+    assert.equal(
+      (await api.post("/people", { name: "First Farah", address: ethers.Wallet.createRandom().address })).body.rule,
+      "person-exists"
+    );
+    assert.equal((await api.post("/people", { name: "Not Real", address: "0x1234" })).status, 400);
+    assert.equal((await api.post("/people", { name: "Built In", address: builtIn.address })).body.rule, "demo-account");
+  });
+
   test("a sign-in message works once", async () => {
     const wallet = ethers.Wallet.createRandom();
     const { body } = await api.get(`/auth/message?address=${wallet.address}`);
@@ -327,11 +357,57 @@ describe("a deal run entirely from three people's own wallets", () => {
     for (const member of [riya, aman, meera]) {
       await member.as.post(`/deals/${id}/agree`, { signature: await member.wallet.signMessage(deal.agreementMessage) });
     }
-    assert.equal((await riya.as.post(`/deals/${id}/lock`)).status, 201);
   });
   after(() => {
     provider.destroy();
     api.close();
+  });
+
+  test("locking hands the organiser the transaction that creates the vault, and changes nothing itself", async () => {
+    const asked = await riya.as.post(`/deals/${id}/lock`);
+    assert.equal(asked.status, 200);
+    assert.equal(asked.body.needsWallet, true);
+    assert.equal(asked.body.transaction.to, undefined);
+    assert.equal(asked.body.transaction.chainId, 31337);
+    assert.equal((await api.get(`/deals/${id}`)).body.deal.status, "agreed");
+  });
+
+  test("a creation sent by someone else, or a transaction that creates nothing, does not lock the deal", async () => {
+    const { transaction } = (await riya.as.post(`/deals/${id}/lock`)).body;
+    const byAman = await aman.wallet.sendTransaction(transaction);
+    await byAman.wait();
+    assert.equal((await aman.as.post(`/deals/${id}/transactions`, { hash: byAman.hash })).body.rule, "not-organiser");
+    assert.equal((await riya.as.post(`/deals/${id}/transactions`, { hash: byAman.hash })).body.rule, "not-this-deal");
+
+    const transfer = await riya.wallet.sendTransaction({ to: aman.wallet.address, value: 1n });
+    await transfer.wait();
+    assert.equal((await riya.as.post(`/deals/${id}/transactions`, { hash: transfer.hash })).body.rule, "not-this-deal");
+    assert.equal((await api.get(`/deals/${id}`)).body.deal.status, "agreed");
+  });
+
+  test("the organiser's own wallet creates the vault, and it holds exactly the agreed terms", async () => {
+    const locked = await act(riya, "/lock");
+    assert.equal(locked.status, 201);
+    const { deal } = locked.body;
+    assert.equal(deal.status, "locked");
+
+    const vault = new ethers.Contract(deal.vaultAddress, (await api.get("/contract")).body.abi, provider);
+    assert.equal(await vault.agreementHash(), deal.agreementHash);
+    assert.deepEqual([...(await vault.getPayers())], [riya.wallet.address]);
+    assert.deepEqual([...(await vault.getPayees())], [aman.wallet.address]);
+    assert.equal(await vault.judge(), meera.wallet.address);
+
+    const { history } = (await api.get(`/deals/${id}/history`)).body;
+    const lock = history.find((entry) => entry.action === "lock" && entry.result === "accepted");
+    assert.equal(lock.via, "wallet");
+    assert.equal(lock.person, "Riya");
+  });
+
+  test("the same creation cannot lock the deal twice", async () => {
+    const { history } = (await api.get(`/deals/${id}/history`)).body;
+    const { tx } = history.find((entry) => entry.action === "lock" && entry.result === "accepted");
+    assert.equal((await riya.as.post(`/deals/${id}/lock`)).body.rule, "already-locked");
+    assert.equal((await riya.as.post(`/deals/${id}/transactions`, { hash: tx })).body.rule, "not-your-transaction");
   });
 
   test("the server hands back a transaction to sign and changes nothing itself", async () => {
@@ -465,7 +541,9 @@ describe("wallet people and demo people in one deal", () => {
     await sunita.post(`/deals/${id}/agree`, { signature: await wallet.signMessage(deal.agreementMessage) });
     await api.post(`/deals/${id}/agree`, { person: "Gopal" });
     await api.post(`/deals/${id}/agree`, { person: "Hema" });
-    await sunita.post(`/deals/${id}/lock`);
+    const creation = await wallet.sendTransaction((await sunita.post(`/deals/${id}/lock`)).body.transaction);
+    await creation.wait();
+    assert.equal((await sunita.post(`/deals/${id}/transactions`, { hash: creation.hash })).status, 201);
 
     const asked = await sunita.post(`/deals/${id}/deposit`);
     const sent = await wallet.sendTransaction(asked.body.transaction);

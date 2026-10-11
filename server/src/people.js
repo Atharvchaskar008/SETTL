@@ -60,10 +60,34 @@ function peopleRoutes(store, { requireWallet = false } = {}) {
     response.json({ people: store.people() });
   });
 
-  // Adds demo people. Body: { name } for one person, or { names: [...] } for several.
-  // Wallet people are not added here: they add themselves by signing in.
+  // Adds people. Body: { name } for one demo person, or { names: [...] } for several.
+  //
+  // { name, address } instead adds someone by their wallet address, so a deal can
+  // name them before they have opened Settl. It gives nobody any power: to act,
+  // that person still has to sign in with the wallet that owns the address.
   router.post("/people", async (request, response, next) => {
     try {
+      const refuse = (rule, reason) => response.status(409).json({ refused: true, rule, reason });
+      if (request.body && request.body.address !== undefined) {
+        const { name, address } = request.body;
+        if (requireWallet && !request.signedIn) {
+          return response.status(401).json({ error: "Sign in with your wallet first." });
+        }
+        if (typeof name !== "string" || !name.trim() || cleanName(name).length > 40) {
+          return response.status(400).json({ error: "Give the person's name as text of 40 characters or fewer." });
+        }
+        if (!hre.ethers.isAddress(address)) {
+          return response.status(400).json({ error: "That is not a wallet address." });
+        }
+        if (findPerson(store, name)) return refuse("person-exists", `${cleanName(name)} has already been added.`);
+        const owner = findByAddress(store, address);
+        if (owner) return refuse("address-in-use", `That wallet already belongs to ${owner.name}.`);
+        if (await isBuiltInAccount(address)) {
+          return refuse("demo-account", "That address is one of the chain's built-in demo accounts, not a person's wallet.");
+        }
+        return response.status(201).json({ added: [addWalletPerson(store, name, address)], alreadyThere: [] });
+      }
+
       if (requireWallet) {
         return response.status(409).json({
           refused: true,

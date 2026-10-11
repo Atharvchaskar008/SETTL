@@ -22,7 +22,7 @@ const chain = require("./chain");
 const { ethers } = chain;
 
 // The last part of a route's path names the action, except for these.
-const ACTION_NAMES = { checklist: "edit", transactions: "report" };
+const ACTION_NAMES = { checklist: "edit", text: "rewrite", transactions: "report" };
 
 // Contract functions and the action names the history uses for them.
 const WALLET_ACTIONS = { markComplete: "complete" };
@@ -64,10 +64,42 @@ function dealRoutes({ store, env, requireWallet = false }) {
     };
   };
 
+  /** One member as the checklist describes them: what they pay, what they earn, and their account if they have one. */
+  const memberOf = (deal, name) => {
+    const { payers, stages, judge } = deal.checklist;
+    const person = findPerson(store, name);
+    const payer = payers.find((candidate) => candidate.name && sameName(candidate.name, name));
+    const earns = stages.filter((stage) => stage.payee && sameName(stage.payee, name)).reduce((sum, stage) => sum + stage.amount, 0);
+    return {
+      name,
+      known: Boolean(person),
+      kind: person ? person.kind : null,
+      address: person ? person.address : null,
+      roles: [payer && "payer", earns > 0 && "payee", judge.name && sameName(judge.name, name) && "judge"].filter(Boolean),
+      ...(payer ? { share: payer.share } : {}),
+      ...(earns > 0 ? { earns } : {}),
+      agreed: deal.agreed.some((agreed) => sameName(agreed, name)),
+    };
+  };
+
+  /** The agreed terms in the form a vault is created from: addresses and whole rupees. */
+  const termsOf = (deal) => {
+    const addressOf = (name) => findPerson(store, name).address;
+    return {
+      payers: deal.checklist.payers.map((payer) => ({ address: addressOf(payer.name), share: payer.share })),
+      judge: addressOf(deal.checklist.judge.name),
+      stages: deal.checklist.stages.map((stage) => ({ payee: addressOf(stage.payee), amount: stage.amount })),
+      agreementHash: deal.agreementHash,
+      stake: deal.checklist.stake || 0,
+    };
+  };
+
   /** The same view, plus what the vault says once the deal is locked. */
   const fullView = async (deal) => {
     const base = view(deal);
-    if (deal.status !== "locked") return { ...base, problems: problemsIn(deal) };
+    if (deal.status !== "locked") {
+      return { ...base, problems: problemsIn(deal), people: base.members.map((name) => memberOf(deal, name)) };
+    }
 
     const vault = await chain.readVault(deal.vault);
     const judge = nameAt(vault.judge);
@@ -94,7 +126,7 @@ function dealRoutes({ store, env, requireWallet = false }) {
         const payee = vault.payees.find((candidate) => candidate.address === person.address);
         const roles = [payer && "payer", payee && "payee", vault.judge === person.address && "judge"].filter(Boolean);
         return {
-          name,
+          ...memberOf(deal, name),
           roles,
           ...(payer ? { share: payer.share, deposited: payer.deposited } : {}),
           ...(payee && vault.stake > 0 ? { staked: payee.staked, left: payee.left } : {}),
@@ -276,6 +308,63 @@ function dealRoutes({ store, env, requireWallet = false }) {
     })
   );
 
+  // The organiser changes the words of the deal and has them read again. As with
+  // any edit, the deal goes back to draft and earlier agreements are cleared.
+  router.put(
+    "/deals/:id/text",
+    wrap(async (request, response) => {
+      const deal = dealOf(request, response);
+      const actor = deal && actorOf(request, response);
+      if (!actor || !organiserOnly(request, response, deal, actor, "rewrite the deal")) return;
+      if (deal.status === "locked") {
+        return refuse(request, response, { rule: "already-locked", reason: "The deal is locked, so its words can no longer change." });
+      }
+      const text = request.body && request.body.text;
+      if (typeof text !== "string" || !text.trim()) {
+        return response.status(400).json({ error: 'Send the deal as text in "text".' });
+      }
+
+      const read = await readDeal(text, { env: request.body.offline === true ? { ...env, CHECKER_MODE: "rules" } : env });
+      Object.assign(deal, {
+        text,
+        checklist: read.checklist,
+        readBy: read.readBy,
+        model: read.model,
+        fallbackReason: read.fallbackReason,
+        dropped: read.dropped,
+        status: "draft",
+        agreed: [],
+        signatures: [],
+        agreementHash: null,
+      });
+      record(deal, {
+        person: actor.name,
+        action: "rewrite",
+        detail: `Deal rewritten and read again by ${read.readBy === "model" ? "the model" : "the offline reader"}.`,
+      });
+
+      response.json({ deal: await fullView(deal), problems: problemsIn(deal) });
+    })
+  );
+
+  // A deal that never reached the chain can be thrown away by its organiser.
+  router.delete(
+    "/deals/:id",
+    wrap(async (request, response) => {
+      const deal = dealOf(request, response);
+      const actor = deal && actorOf(request, response);
+      if (!actor || !organiserOnly(request, response, deal, actor, "discard the deal")) return;
+      if (deal.status === "locked") {
+        return refuse(request, response, {
+          rule: "already-locked",
+          reason: "The deal is locked. Its vault is on the chain and cannot be discarded.",
+        });
+      }
+      store.removeDeal(deal.id);
+      response.json({ discarded: deal.id });
+    })
+  );
+
   // The organiser confirms. This is the person-in-the-loop step: nothing the
   // checker proposed can go further until a person has confirmed it, and
   // confirming is refused while any problem or unclear point is open.
@@ -387,14 +476,22 @@ function dealRoutes({ store, env, requireWallet = false }) {
         });
       }
 
-      const addressOf = (name) => findPerson(store, name).address;
-      deal.vault = await chain.deployVault({
-        payers: deal.checklist.payers.map((payer) => ({ address: addressOf(payer.name), share: payer.share })),
-        judge: addressOf(deal.checklist.judge.name),
-        stages: deal.checklist.stages.map((stage) => ({ payee: addressOf(stage.payee), amount: stage.amount })),
-        agreementHash: deal.agreementHash,
-        stake: deal.checklist.stake || 0,
-      });
+      if (actor.kind === WALLET) {
+        // The server holds no key for this person, so their own wallet creates the
+        // vault. The transaction is built from the agreed terms and nothing else;
+        // the deal is locked only once that exact transaction is reported back.
+        return response.json({
+          accepted: false,
+          needsWallet: true,
+          action: "lock",
+          transaction: await chain.deploymentFor(termsOf(deal)),
+          next: `Send this transaction from your wallet, then report its hash to POST /deals/${deal.id}/transactions.`,
+        });
+      }
+
+      const created = await chain.deployVault(termsOf(deal));
+      deal.vault = created.address;
+      deal.vaultBlock = created.block;
       deal.status = "locked";
       record(deal, { person: actor.name, action: "lock", detail: `Vault created at ${deal.vault}. Waiting for deposits.` });
 
@@ -459,6 +556,43 @@ function dealRoutes({ store, env, requireWallet = false }) {
       if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
         return response.status(400).json({ error: 'Send the transaction hash in "hash".' });
       }
+      const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+
+      // An agreed deal has no vault yet, so the only transaction it can have is
+      // the one that creates it. It is accepted only if the organiser sent it and
+      // it is, byte for byte, the creation of the vault everyone agreed to.
+      if (deal.status === "agreed") {
+        if (!organiserOnly(request, response, deal, actor, "lock the deal")) return;
+        const created = await chain.lookUp(hash);
+        if (!created) {
+          return refuse(request, response, { rule: "unknown-transaction", reason: "That transaction is not on the chain." });
+        }
+        const expected = await chain.deploymentFor(termsOf(deal));
+        if (!same(created.from, actor.address) || created.to || !created.created || !same(created.data, expected.data)) {
+          return refuse(request, response, {
+            rule: "not-this-deal",
+            reason: "That transaction does not create the vault everyone agreed to.",
+          });
+        }
+        if (!created.succeeded) {
+          return refuse(request, response, { rule: "failed-on-chain", reason: "The vault could not be created, so nothing changed." });
+        }
+        if (store.deals().some((other) => other.vault && same(other.vault, created.created))) {
+          return refuse(request, response, { rule: "vault-in-use", reason: "That vault already belongs to another deal." });
+        }
+        deal.vault = created.created;
+        deal.vaultBlock = created.block;
+        deal.status = "locked";
+        record(deal, {
+          person: actor.name,
+          action: "lock",
+          tx: hash,
+          via: "wallet",
+          detail: `Vault created at ${deal.vault} from their own wallet. Waiting for deposits.`,
+        });
+        return response.status(201).json({ accepted: true, action: "lock", tx: hash, deal: await fullView(deal) });
+      }
+
       if (deal.status !== "locked") {
         return refuse(request, response, { rule: "not-locked", reason: "The deal is not locked yet, so it has no transactions." });
       }
@@ -467,7 +601,6 @@ function dealRoutes({ store, env, requireWallet = false }) {
       if (!sent) {
         return refuse(request, response, { rule: "unknown-transaction", reason: "That transaction is not on the chain." });
       }
-      const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
       if (!same(sent.to, deal.vault) || !same(sent.from, actor.address)) {
         return refuse(request, response, {
           rule: "not-your-transaction",
@@ -574,9 +707,17 @@ function dealRoutes({ store, env, requireWallet = false }) {
       const deals = await Promise.all(
         store.deals().map(async (deal) => {
           const total = deal.checklist.total;
-          const row = { id: deal.id, title: deal.checklist.title, organiser: deal.organiser, status: deal.status, total };
+          const row = {
+            id: deal.id,
+            title: deal.checklist.title,
+            organiser: deal.organiser,
+            status: deal.status,
+            total,
+            members: membersOf(deal.checklist),
+            vaultAddress: deal.vault,
+          };
           if (deal.status !== "locked") return { ...row, stageCount: deal.checklist.stages.length, stagesSettled: 0 };
-          const vault = await chain.readVault(deal.vault);
+          const vault = await chain.readProgress(deal.vault);
           return {
             ...row,
             phase: vault.phase,
@@ -618,7 +759,10 @@ function dealRoutes({ store, env, requireWallet = false }) {
         });
       }
 
-      const [settlement, vault] = await Promise.all([chain.readSettlement(deal.vault), chain.readVault(deal.vault)]);
+      const [settlement, vault] = await Promise.all([
+        chain.readSettlement(deal.vault, deal.vaultBlock || 0),
+        chain.readVault(deal.vault),
+      ]);
       response.json({
         summary: {
           id: deal.id,

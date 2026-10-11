@@ -86,6 +86,10 @@ function createAuth({ store }) {
           return refuse(response, "name-taken", `${cleanName(body.name)} is already in use. Choose another name.`);
         }
         person = addWalletPerson(store, body.name, address);
+      }
+      // Only the local chain can hand out test money, and it does so to any wallet that
+      // arrives with none. On a public test network a wallet brings its own from a faucet.
+      if (hre.network.name === "hardhat" && (await ethers.provider.getBalance(address)) === 0n) {
         await hre.network.provider.send("hardhat_setBalance", [address, ethers.toBeHex(STARTING_BALANCE)]);
       }
 

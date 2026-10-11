@@ -26,7 +26,7 @@ async function startApi() {
     });
     return { status: response.status, body: await response.json() };
   };
-  return { get: call("GET"), post: call("POST"), put: call("PUT"), close: () => server.close() };
+  return { get: call("GET"), post: call("POST"), put: call("PUT"), delete: call("DELETE"), close: () => server.close() };
 }
 
 /** Takes a deal from text to "everyone has agreed", and returns its id. */
@@ -123,6 +123,52 @@ describe("before the lock", () => {
     assert.deepEqual(edit.body.deal.agreed, []);
     assert.equal(edit.body.deal.agreementHash, null);
     assert.equal(edit.body.deal.title, "Website for the shop");
+  });
+
+  test("rewriting the words has the deal read again and clears every agreement", async () => {
+    await api.post("/people", { names: ["Nikhil", "Ojas", "Pooja"] });
+    const draft = await api.post("/deals/draft", {
+      person: "Nikhil",
+      text: "Nikhil pays Rs 8,000 for a logo. Ojas is paid Rs 8,000 when the logo is delivered. Pooja settles any dispute.",
+    });
+    const id = draft.body.deal.id;
+    await api.post(`/deals/${id}/confirm`, { person: "Nikhil" });
+    await api.post(`/deals/${id}/agree`, { person: "Ojas" });
+
+    const text = "Nikhil pays Rs 9,000 for a logo. Ojas is paid Rs 9,000 when the logo is delivered. Pooja settles any dispute.";
+    assert.equal((await api.put(`/deals/${id}/text`, { person: "Ojas", text })).body.rule, "not-organiser");
+    const rewritten = await api.put(`/deals/${id}/text`, { person: "Nikhil", text });
+    assert.equal(rewritten.status, 200);
+    assert.equal(rewritten.body.deal.status, "draft");
+    assert.equal(rewritten.body.deal.checklist.total, 9000);
+    assert.deepEqual(rewritten.body.deal.agreed, []);
+    assert.equal(rewritten.body.deal.agreementHash, null);
+  });
+
+  test("the organiser can discard a deal that was never locked, and its number is not used again", async () => {
+    await api.post("/people", { names: ["Qadir", "Rhea", "Sana"] });
+    const text = "Qadir pays Rs 500 for a poster. Rhea is paid Rs 500 when the poster is printed. Sana settles any dispute.";
+    const id = (await api.post("/deals/draft", { person: "Qadir", text })).body.deal.id;
+
+    assert.equal((await api.delete(`/deals/${id}`, { person: "Rhea" })).body.rule, "not-organiser");
+    assert.deepEqual((await api.delete(`/deals/${id}`, { person: "Qadir" })).body, { discarded: id });
+    assert.equal((await api.get(`/deals/${id}`)).status, 404);
+    assert.notEqual((await api.post("/deals/draft", { person: "Qadir", text })).body.deal.id, id);
+  });
+
+  test("each member is listed with what they pay or earn, and whether they have an account", async () => {
+    await api.post("/people", { names: ["Tanvi", "Uday"] });
+    const draft = await api.post("/deals/draft", {
+      person: "Tanvi",
+      text: "Tanvi pays Rs 700 for a banner. Uday is paid Rs 700 when the banner is hung. Vikram settles any dispute.",
+    });
+    const { people } = (await api.get(`/deals/${draft.body.deal.id}`)).body.deal;
+    const named = (name) => people.find((person) => person.name === name);
+    assert.deepEqual(named("Tanvi").roles, ["payer"]);
+    assert.equal(named("Tanvi").share, 700);
+    assert.equal(named("Uday").earns, 700);
+    assert.equal(named("Vikram").known, false);
+    assert.equal(named("Vikram").address, null);
   });
 
   test("an edit that breaks the rules cannot be confirmed", async () => {

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settl</title>
+  <link rel="stylesheet" href="/settl.css">
+</head>
+<body>
+  <header class="top">
+    <a class="mark" href="/">Settl</a>
+    <span class="net" id="net"></span>
+    <span class="space"></span>
+    <button class="quiet" id="lab-open" type="button">Attacks</button>
+    <div class="who" id="who"></div>
+  </header>
+
+  <main>
+    <form class="ask" id="ask">
+      <textarea id="ask-text" rows="1" placeholder="Describe a deal…" aria-label="Describe a deal" autofocus></textarea>
+      <button class="quiet toggle" id="ask-ai" type="button"></button>
+      <button class="primary go" id="ask-go" type="submit" aria-label="Create deal">↵</button>
+    </form>
+    <div class="examples" id="examples"></div>
+    <p class="note" id="note" role="status"></p>
+
+    <div class="work">
+      <nav class="deals" id="deals" aria-label="Deals"></nav>
+      <section class="deal" id="deal"></section>
+    </div>
+  </main>
+
+  <footer class="foot" id="foot"></footer>
+
+  <div class="sheet" id="sheet" hidden>
+    <form class="sheet-box" id="sheet-form">
+      <input id="sheet-name" placeholder="Your name" maxlength="40" autocomplete="off" aria-label="Your name">
+      <button class="primary" type="submit">Continue</button>
+    </form>
+  </div>
+
+  <script src="/vendor/ethers.js"></script>
+  <script src="/settl.js"></script>
+</body>
+</html>

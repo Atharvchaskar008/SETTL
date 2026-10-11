@@ -1,6 +1,8 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const express = require("express");
 const hre = require("hardhat");
+const chain = require("./chain");
 const { createStore } = require("./store");
 const { peopleRoutes, addPerson, MEDIATOR } = require("./people");
 const { dealRoutes } = require("./deals");
@@ -19,10 +21,18 @@ const { rpcRoutes } = require("./rpc");
  */
 async function createApp({ env = process.env, storePath } = {}) {
   const app = express();
-  const store = createStore(storePath);
+  // Refuses to start on anything but a test network.
+  const network = await chain.testNetwork();
+  const local = chain.isLocal;
+  // A public test network keeps its vaults when the server stops, so the deals are kept too.
+  const store = local
+    ? createStore(storePath)
+    : createStore(storePath || path.join(__dirname, "..", "data", "testnet.json"), { keepFor: network.chainId });
   // With REQUIRE_WALLET=true nobody can act without signing in with a wallet,
   // so there are no demo people at all, the built-in mediator included.
-  const requireWallet = String(env.REQUIRE_WALLET || "").toLowerCase() === "true";
+  // Demo people need accounts the server holds, and only the local chain has those. On any
+  // other network everyone signs in with their own wallet, whatever REQUIRE_WALLET says.
+  const requireWallet = !local || String(env.REQUIRE_WALLET || "").toLowerCase() === "true";
   if (!requireWallet) await addPerson(store, MEDIATOR);
 
   app.use(express.json({ limit: "200kb" }));
@@ -30,10 +40,11 @@ async function createApp({ env = process.env, storePath } = {}) {
   const auth = createAuth({ store });
   app.use(auth.identify);
 
-  const path = require("path");
-  // The dashboard page is served with one extra script: the bridge that connects
-  // its screens to this server. The files in web/ themselves are left untouched.
-  app.get(["/", "/index.html"], (request, response, next) => {
+  // The dashboard is served from app/. The earlier dashboard in web/ stays available
+  // at /old, served with one extra script: the bridge that connects its screens to
+  // this server. The files in web/ themselves are left untouched.
+  app.use(express.static(path.join(__dirname, "../../app")));
+  app.get(["/old", "/old/", "/old/index.html"], (request, response, next) => {
     fs.readFile(path.join(__dirname, "../../web/index.html"), "utf8", (error, html) => {
       if (error) return next();
       response.type("html").send(html.replace("</body>", '  <script src="/settl-bridge.js"></script>\n</body>'));
@@ -43,6 +54,7 @@ async function createApp({ env = process.env, storePath } = {}) {
     response.sendFile(path.join(__dirname, "../public/settl-bridge.js"));
   });
   app.use(express.static(path.join(__dirname, "../../web")));
+  app.use("/old", express.static(path.join(__dirname, "../../web")));
   app.use("/site", express.static(path.join(__dirname, "../../site")));
   // The wallet console, and the browser build of ethers it uses, served locally so it works offline.
   app.use("/wallet", express.static(path.join(__dirname, "../../wallet")));
@@ -68,6 +80,9 @@ async function createApp({ env = process.env, storePath } = {}) {
   // mediator. For demonstrations. Wallet sessions end, because their people are gone.
   app.post("/reset", async (request, response, next) => {
     try {
+      if (!local) {
+        return response.status(409).json({ refused: true, rule: "local-only", reason: "Only the local test chain can be reset." });
+      }
       if (requireWallet) {
         return response.status(409).json({
           refused: true,
@@ -85,7 +100,8 @@ async function createApp({ env = process.env, storePath } = {}) {
   });
 
   app.use(auth.router);
-  app.use(rpcRoutes());
+  // Wallets reach the local chain through this server. A public network they reach themselves.
+  if (local) app.use(rpcRoutes());
   app.use(peopleRoutes(store, { requireWallet }));
   app.use(dealRoutes({ store, env, requireWallet }));
   app.use(attackRoutes());

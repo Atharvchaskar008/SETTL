@@ -15,5 +15,11 @@ module.exports = {
       // One built-in account per fictional person; all funds are pretend.
       accounts: { count: 50 },
     },
+    // A public test network, chosen by CHAIN_RPC_URL. The server holds no key
+    // there: every transaction is signed and sent by a person's own wallet.
+    testnet: {
+      url: process.env.CHAIN_RPC_URL || "http://127.0.0.1:8545",
+      accounts: [],
+    },
   },
 };

@@ -9,9 +9,17 @@ const hre = require("hardhat");
 
 const { ethers } = hre;
 
-// Pretend money: Rs 1,000 is one test ETH on the local chain, so one rupee is 10^15 wei.
-// At this scale gas costs a fraction of a rupee and wallets show round numbers.
-const RUPEE = 10n ** 15n;
+// Where the chain is. "Local" is the Hardhat network inside this process: it has
+// built-in funded accounts, can hand out test money and can be reset. Any other
+// network (a public test network, for example) is reached over RPC; there the
+// server holds no key at all, and every transaction comes from someone's wallet.
+const isLocal = hre.network.name === "hardhat";
+
+// Test money. On the local chain Rs 1,000 is one test ETH (10^15 wei per rupee):
+// gas costs a fraction of a rupee and wallets show round numbers. On a public
+// test network test ETH is scarce, so a rupee is 10^9 wei there and Rs 30,000
+// is 0.00003 test ETH. RUPEE_WEI overrides either.
+const RUPEE = BigInt(process.env.RUPEE_WEI || (isLocal ? 10n ** 15n : 10n ** 9n));
 const toWei = (rupees) => BigInt(rupees) * RUPEE;
 const toRupees = (wei) => Number(wei / RUPEE) + Number(wei % RUPEE) / Number(RUPEE);
 
@@ -103,30 +111,52 @@ function refusalFrom(error, contract, method) {
   return new Refusal(revert.name, text);
 }
 
+/** A deal's terms in the order and units the vault's constructor takes them. */
+const constructorArgs = ({ payers, judge, stages, agreementHash, stake = 0 }) => [
+  payers.map((payer) => payer.address),
+  payers.map((payer) => toWei(payer.share)),
+  judge,
+  stages.map((stage) => stage.payee),
+  stages.map((stage) => toWei(stage.amount)),
+  agreementHash,
+  toWei(stake),
+];
+
 /**
- * Deploys one vault for one deal. Amounts are whole rupees.
- * @returns {Promise<string>} the vault's address
+ * Deploys one vault for one deal from an account the server holds. Local chain
+ * only, for demo people. Amounts are whole rupees.
+ * @returns {Promise<{ address: string, block: number }>}
  */
-async function deployVault({ payers, judge, stages, agreementHash, stake = 0, contract = "MilestoneVault" }) {
-  const Vault = await ethers.getContractFactory(contract);
+async function deployVault(terms) {
+  const Vault = await ethers.getContractFactory(terms.contract || "MilestoneVault");
   try {
-    const vault = await Vault.deploy(
-      payers.map((payer) => payer.address),
-      payers.map((payer) => toWei(payer.share)),
-      judge,
-      stages.map((stage) => stage.payee),
-      stages.map((stage) => toWei(stage.amount)),
-      agreementHash,
-      toWei(stake)
-    );
-    await vault.waitForDeployment();
-    return vault.target;
+    const vault = await Vault.deploy(...constructorArgs(terms));
+    const receipt = await vault.deploymentTransaction().wait();
+    return { address: vault.target, block: receipt.blockNumber };
   } catch (error) {
     throw refusalFrom(error, Vault) || error;
   }
 }
 
-const vaultAt = (address, contract = "MilestoneVault") => ethers.getContractAt(contract, address);
+/**
+ * The transaction that creates a deal's vault, for the organiser's own wallet to
+ * sign and send. It is built from the agreed terms alone, so a transaction with
+ * exactly this data can only create exactly this vault.
+ */
+async function deploymentFor(terms) {
+  const artifact = hre.artifacts.readArtifactSync(terms.contract || "MilestoneVault");
+  const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode);
+  const { data } = await factory.getDeployTransaction(...constructorArgs(terms));
+  const { chainId } = await ethers.provider.getNetwork();
+  return { data, value: "0x0", chainId: Number(chainId) };
+}
+
+/** A vault to read from. On the local chain it is also connected to an account, so demo people can act. */
+async function vaultAt(address, contract = "MilestoneVault") {
+  const artifact = hre.artifacts.readArtifactSync(contract);
+  const [account] = await ethers.getSigners();
+  return new ethers.Contract(address, artifact.abi, account || ethers.provider);
+}
 
 /**
  * Sends one action to a vault as `signer`.
@@ -176,30 +206,89 @@ async function prepare(vault, method, args = [], overrides = {}) {
 
 /**
  * Looks up a transaction a wallet says it sent, and says what it did.
- * @returns {Promise<null | { from, to, succeeded, method, args }>} null if it is not on the chain
+ * `vault` may be left out when the transaction is the one that creates the vault.
+ * @returns {Promise<null | { from, to, data, created, block, succeeded, method, args }>} null if it is not on the chain
  */
 async function lookUp(hash, vault) {
-  const [transaction, receipt] = await Promise.all([ethers.provider.getTransaction(hash), ethers.provider.getTransactionReceipt(hash)]);
+  const read = () => Promise.all([ethers.provider.getTransaction(hash), ethers.provider.getTransactionReceipt(hash)]);
+  let [transaction, receipt] = await read();
+  // On a public network the wallet's node can be a moment ahead of the one the server reads from.
+  for (let attempt = 0; !isLocal && (!transaction || !receipt) && attempt < LOOKUP_ATTEMPTS; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, LOOKUP_PAUSE_MS));
+    [transaction, receipt] = await read();
+  }
   if (!transaction || !receipt) return null;
   let call = null;
   try {
-    call = vault.interface.parseTransaction({ data: transaction.data, value: transaction.value });
+    if (vault && transaction.to) call = vault.interface.parseTransaction({ data: transaction.data, value: transaction.value });
   } catch (ignored) {
     // Not a call this contract understands.
   }
   return {
     from: transaction.from,
     to: transaction.to,
+    data: transaction.data,
+    // The address of the contract this transaction created, if it created one.
+    created: receipt.contractAddress,
+    block: receipt.blockNumber,
     succeeded: receipt.status === 1,
     method: call ? call.name : null,
     args: call ? [...call.args] : [],
   };
 }
 
-/** What a client needs to talk to a vault directly. */
+// The only networks Settl will run on. Every one of them uses test money that
+// is free and worth nothing. `rpc` is a public address a wallet can use to add
+// the network; the server's own RPC address is never sent to a browser.
+const TEST_NETWORKS = {
+  31337: { name: "Local", coin: "ETH" },
+  1337: { name: "Local", coin: "ETH" },
+  11155111: { name: "Sepolia", coin: "ETH", explorer: "https://sepolia.etherscan.io", rpc: "https://ethereum-sepolia-rpc.publicnode.com" },
+  17000: { name: "Holesky", coin: "ETH", explorer: "https://holesky.etherscan.io", rpc: "https://ethereum-holesky-rpc.publicnode.com" },
+  84532: { name: "Base Sepolia", coin: "ETH", explorer: "https://sepolia.basescan.org", rpc: "https://sepolia.base.org" },
+  421614: { name: "Arbitrum Sepolia", coin: "ETH", explorer: "https://sepolia.arbiscan.io", rpc: "https://sepolia-rollup.arbitrum.io/rpc" },
+  11155420: { name: "OP Sepolia", coin: "ETH", explorer: "https://sepolia-optimism.etherscan.io", rpc: "https://sepolia.optimism.io" },
+  80002: { name: "Polygon Amoy", coin: "POL", explorer: "https://amoy.polygonscan.com", rpc: "https://rpc-amoy.polygon.technology" },
+};
+
+const LOOKUP_ATTEMPTS = 12;
+const LOOKUP_PAUSE_MS = 1500;
+
+/**
+ * The network the server is connected to. Refuses anything that is not a test
+ * network, so that Settl can never be pointed at real money by mistake.
+ */
+async function testNetwork() {
+  const id = Number((await ethers.provider.getNetwork()).chainId);
+  const network = TEST_NETWORKS[id];
+  if (!network) {
+    throw new Error(`Chain ${id} is not a test network. Settl only runs on test networks, where the money is not real.`);
+  }
+  return { chainId: id, ...network };
+}
+
+/** What a client needs to know about the chain and the vault contract. */
 async function contractInfo() {
-  const { chainId } = await ethers.provider.getNetwork();
-  return { chainId: Number(chainId), rpcPath: "/rpc", abi: hre.artifacts.readArtifactSync("MilestoneVault").abi };
+  const network = await testNetwork();
+  return {
+    chainId: network.chainId,
+    local: isLocal,
+    network: network.name,
+    coin: network.coin,
+    // Wallets reach the local chain through this server. A public network they reach themselves.
+    rpcPath: isLocal ? "/rpc" : null,
+    publicRpc: isLocal ? null : network.rpc || null,
+    explorer: network.explorer || null,
+    rupeeWei: RUPEE.toString(),
+    abi: hre.artifacts.readArtifactSync("MilestoneVault").abi,
+  };
+}
+
+/** How far a vault has got: its phase and the state of each stage. Two reads, for lists. */
+async function readProgress(address) {
+  const vault = await vaultAt(address);
+  const [phase, stages] = await Promise.all([vault.phase(), vault.getStages()]);
+  return { phase: PHASES[Number(phase)], stages: stages.map((stage) => ({ state: STATES[Number(stage.state)] })) };
 }
 
 /** Reads everything the dashboard needs about a vault, in rupees. */
@@ -268,9 +357,10 @@ async function readVault(address, contract = "MilestoneVault") {
  * The final accounts of a vault, rebuilt from the events the contract emitted.
  * Nothing here comes from the server's own records.
  */
-async function readSettlement(address, contract = "MilestoneVault") {
+async function readSettlement(address, fromBlock = 0, contract = "MilestoneVault") {
   const vault = await vaultAt(address, contract);
-  const eventsNamed = (name) => vault.queryFilter(vault.filters[name]());
+  // Events are read from the block the vault was created in: public networks refuse a search of the whole chain.
+  const eventsNamed = (name) => vault.queryFilter(vault.filters[name](), fromBlock);
   const [deposits, returns, releases, refunds, withdrawals, disputes, stakes, stakeReturns, forfeits, stages, balance] =
     await Promise.all([
       eventsNamed("Deposited"),
@@ -362,6 +452,7 @@ async function owedTo(address, person, contract = "MilestoneVault") {
 
 module.exports = {
   ethers,
+  isLocal,
   RUPEE,
   toWei,
   toRupees,
@@ -369,12 +460,15 @@ module.exports = {
   STATES,
   Refusal,
   deployVault,
+  deploymentFor,
   vaultAt,
   act,
   simulate,
   prepare,
   lookUp,
   contractInfo,
+  testNetwork,
+  readProgress,
   readVault,
   readSettlement,
   owedTo,

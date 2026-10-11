@@ -4,7 +4,7 @@
 
 Built for VORTEXA 3.0, problem **B-03 MilestoneVault: Adversarial Smart-Contract Escrow**.
 
-> All funds in this project are simulated. Nothing here moves real money or connects to a real payment system.
+> All money in this project is test money. Nothing here moves real money or connects to a real payment system, and the server refuses to start on a network where money is real.
 
 ## Contents
 
@@ -35,7 +35,7 @@ When work is paid in stages, both sides are afraid to go first. The payer fears 
 
 1. **Describe.** One person, the organiser, types the deal in normal language.
 2. **Check.** The deal checker turns the text into a checklist of who pays, who gets paid, who judges, the stages and the amounts. It marks every unclear line, and the organiser fixes them.
-3. **Join.** The organiser adds the people. Each person reads the checklist and agrees, and the payers deposit their share. The deal is now locked.
+3. **Join.** The organiser adds the people, by name or by wallet address. Each person reads the checklist and signs it. The vault is then created and the payers deposit their share. The deal is now locked.
 4. **Do and approve.** The person responsible marks a stage done. The payers approve and that person is paid, or a payer disputes and the judge chooses "pay" or "refund".
 5. **Finish.** Every stage is settled, the money adds up exactly, and the full history is visible.
 
@@ -69,10 +69,12 @@ A sample of each is in [server/fixtures/](server/fixtures/).
 
 ```mermaid
 flowchart LR
-    CLIENT["Client<br/>(curl, demo script, later a web app)"] -->|"HTTP + JSON"| API["Express server"]
+    PAGE["Dashboard<br/>(app/)"] -->|"HTTP + JSON"| API["Express server"]
     API --> CHECKER["Deal checker"]
     API --> STORE["JSON store<br/>people, deals, history"]
-    API -->|"ethers.js"| CHAIN["Hardhat network<br/>(in memory)"]
+    API -->|"ethers.js"| CHAIN["Chain<br/>local Hardhat network,<br/>or a public test network"]
+    PAGE -.->|"asks to sign"| WALLET["A person's wallet"]
+    WALLET -->|"signed transactions"| CHAIN
     CHAIN --> VAULT["MilestoneVault<br/>one per deal"]
     CHECKER -.->|"optional"| MODEL["Language model API"]
 ```
@@ -81,8 +83,9 @@ flowchart LR
 |---|---|---|
 | Vault contract | Holds the money and enforces every rule about who may do what, and when | [contracts/MilestoneVault.sol](contracts/MilestoneVault.sol) |
 | Deal checker | Reads deal text into a proposed checklist, with a model path and an offline path | [server/src/checker/](server/src/checker/) |
-| Server | Stores deals and people, runs the agree step, deploys a vault from a confirmed checklist, forwards actions to the vault | [server/src/](server/src/) |
-| Chain | A Hardhat network running inside the server process, with built-in test accounts | [hardhat.config.js](hardhat.config.js) |
+| Server | Stores deals and people, runs the agree step, creates a vault from a confirmed checklist or prepares that transaction for the organiser's wallet, and forwards actions to the vault | [server/src/](server/src/) |
+| Dashboard | One page: a bar to describe a deal, a workspace of deals, and the open deal with the steps the signed-in person can take | [app/](app/) |
+| Chain | By default a Hardhat network running inside the server process, with built-in test accounts. Optionally a public test network such as Sepolia | [hardhat.config.js](hardhat.config.js) |
 
 ### From text to a locked vault
 
@@ -97,14 +100,15 @@ flowchart TD
     E --> F["Proposed checklist + unclear points"]
     F --> G["Organiser edits and confirms<br/>(refused while any problem is open)"]
     G --> H["Every person in the deal agrees"]
-    H --> I["Server deploys one vault<br/>from the confirmed checklist"]
+    H --> I["One vault is created<br/>from the confirmed checklist"]
     I --> J["Payers deposit<br/>vault becomes Active"]
     J --> K["Each action is sent to the vault<br/>as the person who asked"]
 ```
 
-Two design decisions matter most here:
+Three design decisions matter most here:
 
 - **The contract is not generated.** One vault contract was written and tested once. Every deal gets a fresh copy of it, filled in with that deal's people and amounts.
+- **Whoever creates the vault cannot change it.** For demo people the server creates it. For wallet people the organiser's own wallet does, from a transaction the server builds out of the agreed terms. The server accepts the result only if the transaction on the chain matches that one byte for byte.
 - **AI output never reaches the contract directly.** The model only proposes. A person must confirm, every member must agree, and only that confirmed checklist is used to create the vault. A fingerprint of the deal text and the confirmed checklist is stored in the vault, so the vault is tied to exactly what everyone agreed to.
 
 ## The vault contract
@@ -236,7 +240,7 @@ This is one run on eight deals, so treat it as an indication, and expect the mod
 
 ## The server
 
-`npm start` runs the Express server with the Hardhat network inside the same process, so one command starts everything. Each fictional person is mapped to one of the chain's built-in accounts, and every request names the acting `person`.
+`npm start` runs the Express server with the Hardhat network inside the same process, so one command starts everything. Each fictional person is mapped to one of the chain's built-in accounts, and every request names the acting `person`. A person who signs in with a wallet is known by their session instead, and signs their own transactions.
 
 After a deal is locked, the server does not decide whether an action is allowed. It sends the transaction as that person and reports what the contract said. A refusal comes back as HTTP 409 with a plain-language reason.
 
@@ -245,33 +249,47 @@ Stage numbers in the API count from 1.
 | Route | Purpose |
 |---|---|
 | `GET /health` | Server and chain are up |
-| `GET /people`, `POST /people` | List or add fictional people. A neutral "Platform Mediator" exists by default and can be used as the judge |
+| `GET /people`, `POST /people` | List or add people. `{ name }` adds a demo person. `{ name, address }` adds a person by wallet address; they act once they sign in with that wallet. On the local chain a neutral "Platform Mediator" exists by default and can be used as the judge |
 | `POST /deals/draft` | Deal text in, proposed checklist and problem list out |
 | `PUT /deals/:id/checklist` | The organiser edits the checklist. Any edit clears earlier agreements |
+| `PUT /deals/:id/text` | The organiser rewrites the deal's words and has them read again. Clears earlier agreements |
+| `DELETE /deals/:id` | The organiser discards a deal that was never locked |
 | `POST /deals/:id/confirm` | The organiser confirms. Refused while any problem is open |
 | `POST /deals/:id/agree` | One member agrees |
-| `POST /deals/:id/lock` | Refused until everyone has agreed. Deploys the vault |
+| `POST /deals/:id/lock` | Refused until everyone has agreed. For a demo organiser the server creates the vault. For a wallet organiser it returns the creation transaction for their wallet to send |
 | `POST /deals/:id/deposit`, `/cancel`, `/withdraw` | Money actions |
 | `POST /deals/:id/stake`, `/leave` | A payee puts in the stake, or walks away from a locked deal |
 | `POST /deals/:id/stages/:n/complete`, `/approve`, `/dispute`, `/resolve` | Stage actions. `:n` counts from 1. `resolve` takes `"decision": "pay"` or `"refund"` |
 | `GET /deals`, `GET /deals/:id` | Deal list, and one deal with its stage states and balances |
 | `GET /deals/:id/history` | Accepted actions and refused attempts |
 | `GET /deals/:id/summary` | Final settlement |
-| `GET /attacks`, `POST /attacks/:name` | Run `second-release`, `unauthorised-refund`, `out-of-order` or `re-entrancy` on fresh vaults |
+| `GET /attacks`, `POST /attacks/:name` | Run `second-release`, `unauthorised-refund`, `out-of-order` or `re-entrancy` on fresh vaults. On a public network each attack runs on a local chain of its own |
 | `GET /auth/message`, `POST /auth/sign-in`, `POST /auth/sign-out`, `GET /auth/me` | Wallet sign-in |
-| `POST /rpc` | The chain, for wallets |
-| `POST /deals/:id/transactions` | A wallet person reports the transaction their wallet sent |
-| `GET /contract` | The vault's interface, chain ID and RPC path, for clients that call the vault directly |
-| `POST /reset` | Starts again from nothing: a fresh chain, no deals, only the built-in mediator. For demonstrations |
+| `POST /rpc` | The local chain, for wallets. Not offered on a public network, which wallets reach themselves |
+| `POST /deals/:id/transactions` | A wallet person reports a transaction their wallet sent: a step on the vault, or the creation of the vault itself |
+| `GET /contract` | The vault's interface, the network's name and chain ID, and the test-money rate |
+| `POST /reset` | Local chain only. Starts again from nothing: a fresh chain, no deals, only the built-in mediator. For demonstrations |
 
 ### The dashboard
 
-`npm start` serves the dashboard in [web/](web/) at `http://localhost:3000`. It has a deal list, a four-step wizard (describe, review, agree, lock), a deal screen with the stages and the money bar, a final summary and the attack lab.
+`npm start` serves the dashboard in [app/](app/) at `http://localhost:3000`. It is one page with three parts.
 
-- **It works with demo people.** The "Acting as" switch names who is acting, so one person can play every role in front of an audience. "Try anything" shows every button to everyone, so a wrong move can be tried and seen to be refused.
-- **Anyone a deal names is added as a demo person** when the deal is drafted, so a deal can be typed with any names.
-- **It talks to the server through [server/public/settl-bridge.js](server/public/settl-bridge.js)**, a script the server adds to the page. It translates between the screens' data format and the server's, shows the points an organiser must resolve, and adds the stake and leave actions. Nothing in `web/` has to change for it to work.
-- **People who sign in with their own wallet use `/wallet` instead.** The dashboard links to it.
+| Part | What it does |
+|---|---|
+| **The bar** | Type a deal in plain words and press Enter. Four one-click examples sit under it. The "AI" switch chooses between the model and the offline reader |
+| **The workspace** | The deals you organise or are part of, each with its amount, status and progress |
+| **The open deal** | Four steps (Check, Sign, Fund, Pay), the one thing you can do next, the people, the stages, the original words, and the activity log with every refusal |
+
+How it behaves:
+
+- **It shows only what you can do.** The button on a deal is your next step: Confirm, Sign, Create vault, Deposit, Done, Approve, Dispute, Pay, Refund or Withdraw. If it is someone else's turn, it says who the deal is waiting for.
+- **Before the lock, every stage shows the words it was read from**, so the organiser checks the reader's work against the text. Problems and unclear points block Confirm until they are fixed, by editing the words and reading again or by accepting the point.
+- **Missing people are added in place.** Paste a wallet address next to a name, or on the local chain leave it empty to add a demo person.
+- **It works with a wallet or without one.** With a wallet, every signature and transaction comes from the wallet. Without one, on the local chain, you pick or add a demo person from the menu at the top right and the server acts for them.
+- **Once a deal is over, a settlement table** shows what each person paid in, received and ended up with, and whether it adds up. The figures come from the vault's own events.
+- **"Attacks" opens the attack lab**, which runs the four attacks and shows each step and its outcome.
+
+The earlier dashboard in [web/](web/) is still served at `/old`, connected through [server/public/settl-bridge.js](server/public/settl-bridge.js).
 
 ## Wallets and real users
 
@@ -279,44 +297,50 @@ There are two kinds of people.
 
 | Kind | Who they are | How the server knows it is them | Who signs their transactions |
 |---|---|---|---|
-| **Demo person** | A fictional name added with `POST /people` | It does not. The request just names them | The server, with a built-in chain account it holds for them |
+| **Demo person** | A fictional name added with `POST /people`. Local chain only | It does not. The request just names them | The server, with a built-in chain account it holds for them |
 | **Wallet person** | A real person with their own wallet | They sign a one-time message with the wallet, and the server checks the signature against the address | Their own wallet. The server holds no key for them |
 
 Demo people exist so the product can be shown without any set-up. Wallet people are the real thing: nobody can act as one by typing their name, because the server refuses a request that names a wallet person without that person's session.
 
 ### What a wallet person does
 
-1. **Signs in.** The wallet signs a short message that proves the address is theirs. It costs nothing and moves no money. A first sign-in also takes their name and gives the wallet pretend funds.
-2. **Agrees by signature.** To agree to a deal, they sign a message carrying the deal's fingerprint. The signature is stored with the deal, and anyone can check it against their address. Editing the checklist changes the fingerprint, so old signatures stop fitting and are thrown away.
-3. **Sends their own transactions.** For a deposit or a stage action, the server first asks the chain whether the contract would accept it from that address. If not, it answers with the plain reason and the wallet is never opened. If so, it hands back the transaction, and the person's wallet signs and sends it.
+1. **Signs in.** The wallet signs a short message that proves the address is theirs. It costs nothing and moves no money. A first sign-in also takes their name. On the local chain, a wallet that arrives empty is given test money.
+2. **Is added by address, if they have not signed in yet.** An organiser can put a name against a wallet address so the deal can name that person. This gives nobody any power: to act, the person still has to sign in with the wallet that owns the address.
+3. **Agrees by signature.** To agree to a deal, they sign a message carrying the deal's fingerprint. The signature is stored with the deal, and anyone can check it against their address. Editing the checklist changes the fingerprint, so old signatures stop fitting and are thrown away.
+4. **Creates the vault, if they are the organiser.** The server builds the creation transaction from the agreed terms and the organiser's wallet sends it. The deal is locked only when that exact transaction, sent by the organiser, is found on the chain. A creation sent by anyone else, or one with different terms, is refused.
+5. **Sends their own transactions.** For a deposit or a stage action, the server first asks the chain whether the contract would accept it from that address. If not, it answers with the plain reason and the wallet is never opened. If so, it hands back the transaction, and the person's wallet signs and sends it.
 
 A wallet can also call the vault directly without asking the server. The contract's rules apply either way, and the deal's state is always read from the chain.
 
-### How the wallet reaches the chain
+### Two networks
 
-The chain runs inside the server, so the server passes wallet requests through at `POST /rpc`, and `npm start` also offers the same chain at `http://localhost:8545`. Only what a wallet needs is let through: reading the chain and sending transactions the wallet has already signed. Requests that would make the node sign with the demo accounts' keys, or rewrite the chain, are refused.
+| | Local (default) | Public test network |
+|---|---|---|
+| Start with | `npm start` | `npm run testnet` (Sepolia), or `CHAIN_RPC_URL` in `.env` |
+| Where vaults live | A Hardhat network inside the server process | On the test network, visible in its block explorer |
+| People | Demo people and wallet people | Wallet people only. The server holds no key at all |
+| Test money | Given to a wallet when it signs in. ₹1,000 is 1 test ETH | Collected from a faucet. ₹1,000 is 0.000001 test ETH |
+| How a wallet reaches the chain | Through the server at `POST /rpc`, or `http://localhost:8545` (chain ID `31337`) | Directly. The server's own RPC address is never sent to a browser |
+| After a restart | Chain, deals and people start empty | Vaults remain on the network, and deals are kept in `server/data/testnet.json` |
 
-| Wallet network setting | Value |
-|---|---|
-| RPC URL | `http://localhost:3000/rpc` or `http://localhost:8545` |
-| Chain ID | `31337` |
-| Currency symbol | `ETH` |
+On the local chain the server lets through only what a wallet needs: reading the chain and sending transactions the wallet has already signed. Requests that would make the node sign with the demo accounts' keys, or rewrite the chain, are refused.
 
-Money is pretend: ₹1,000 is shown as 1 test ETH, so a ₹30,000 deposit appears in the wallet as 30 ETH.
+The server starts only on a known test network: Sepolia, Holesky, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy or a local chain. Pointed at any other network, it stops with an error.
 
 ### Trying it with MetaMask
 
-1. Run `npm start` and open `http://localhost:3000/wallet`.
-2. Click **Connect wallet**. The page asks MetaMask to add and switch to the local network. Use a fresh account with no real funds.
-3. Enter a name and click **Sign in with wallet**.
-4. Have the other people in the deal do the same from their own browsers or MetaMask accounts. The names they sign in with must match the names in the deal text.
-5. Write a deal, then confirm, agree, lock, deposit and work through the stages.
+[SETUP.md](SETUP.md) has the full steps for someone who has never used a wallet, including where to get test ETH. In short:
 
-Restarting the server resets the chain. If transactions then fail, use MetaMask → Settings → Advanced → "Clear activity tab data".
+1. Run `npm start` and open `http://localhost:3000`.
+2. Click **Connect**. The page asks MetaMask to add and switch to the network. Use a fresh account with no real funds.
+3. Enter a name and approve the sign-in message.
+4. To play several people on one laptop, add more accounts in MetaMask and switch between them. The page follows the switch.
 
-Set `REQUIRE_WALLET=true` to switch demo people off entirely, so every action needs a wallet session.
+Restarting the server resets the local chain. If transactions then fail, use MetaMask → Settings → Advanced → "Clear activity tab data".
 
-**What has been tested:** the whole flow, with real keys signing real transactions through `/rpc`, in [server/test/wallet.test.js](server/test/wallet.test.js). **What has not:** the page has not yet been driven by MetaMask itself.
+Set `REQUIRE_WALLET=true` to switch demo people off on the local chain too, so every action needs a wallet session.
+
+**What has been tested:** the whole flow on the local chain, with real keys signing real transactions through `/rpc`, in [server/test/wallet.test.js](server/test/wallet.test.js). **What has not:** the page has not been driven by MetaMask itself, and no transaction has yet been sent on a public test network.
 
 ## Project layout
 
@@ -338,19 +362,22 @@ server/
   src/store.js                JSON file store
   src/people.js               demo people (server-held accounts) and wallet people
   src/auth.js                 wallet sign-in and sessions
-  src/rpc.js                  the chain, passed through for wallets
-  src/chain.js                deploy, act, read state, plain-language refusal reasons
+  src/rpc.js                  the local chain, passed through for wallets
+  src/chain.js                the network, deploy, act, read state, plain-language refusal reasons
   src/deals.js                deal routes
   src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
-  public/settl-bridge.js      connects the dashboard in web/ to this server
+  public/settl-bridge.js      connects the earlier dashboard in web/ to this server
   fixtures/                   five sample deals
   test/                       checker tests, API tests and wallet tests
-web/                          the dashboard, served at /
+app/                          the dashboard, served at /
+  index.html, settl.css, settl.js
+web/                          the earlier dashboard, served at /old
 wallet/index.html             the wallet console, served at /wallet
 scripts/demo.js               end-to-end run of five deals and four attacks
 scripts/score.js              scores the deal checker against the sample deals
 samples/                      more sample deals with their expected checklists
+SETUP.md                      wallet set-up for people new to MetaMask
 hardhat.config.js, package.json, .env.example
 ```
 
@@ -385,7 +412,8 @@ npm start
 | `npm run test:server` | Server tests only |
 | `npm run demo` | Runs five deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
 | `npm run score` | Scores the deal checker against the sample deals in `samples/deals/` |
-| `npm start` | Starts the server and the dashboard at `http://localhost:3000`, and the wallet console at `/wallet` |
+| `npm start` | Starts the server and the dashboard at `http://localhost:3000`, on the local chain |
+| `npm run testnet` | The same, on the Sepolia test network. Needs a wallet with test ETH; see [SETUP.md](SETUP.md) |
 
 ### What the demo shows
 
@@ -423,8 +451,10 @@ Copy `.env.example` to `.env` and put your values in `.env`. Every value is opti
 | `LLM_MODEL` | Model name for the chosen provider. Defaults to `claude-opus-5-5` for Claude |
 | `CHECKER_MODE` | Set to `rules` to force the offline reader even when a key is present |
 | `REQUIRE_WALLET` | Set to `true` to allow wallet people only. Demo people are switched off |
+| `CHAIN_RPC_URL` | The address of a public test network. When set, Settl runs there in place of the local chain. Keep it in `.env`; it can contain a provider key |
+| `RUPEE_WEI` | How much test coin one rupee is, in wei. Defaults to 10^15 on the local chain and 10^9 on a public one |
 | `PORT` | Server port. Defaults to 3000 |
-| `RPC_PORT` | Second port where wallets can reach the chain. Defaults to 8545 |
+| `RPC_PORT` | Second port where wallets can reach the local chain. Defaults to 8545 |
 
 With no key, the offline reader is used and everything else works the same.
 
@@ -432,27 +462,32 @@ With no key, the offline reader is used and everything else works the same.
 
 | Part | Status |
 |---|---|
-| Vault contract, including the optional stake | Done. 81 contract tests pass |
+| Vault contract, including the optional stake | Done. 81 contract tests pass. The contract has not changed since |
 | Attack tests and the WeakVault comparison | Done |
 | Deal checker: offline reader, validation, fallback | Done. 34 tests pass |
 | Deal checker: model reader | Done. Run against Gemini (`gemini-3.5-flash-lite`): see the measured figures above. The Claude path has not been run against a live key |
-| Server: every route in the table above | Done. 27 API tests pass |
-| Wallet sign-in, signed agreements, wallet-sent transactions | Done. 31 tests pass, using real keys through `/rpc` |
-| Wallet console page (`/wallet`) | Written. Its logic passes a scripted run with a stand-in wallet; not yet tried with MetaMask |
-| End-to-end demo (`npm run demo`) | Done. Five deals and four attacks, with every step checked |
-| Dashboard (`/`) | Connected to the server. A full deal, the stake flow, the summary, the attack lab and reset were run through the real page in a headless browser environment; not yet checked by eye in a real browser |
+| Server: every route in the table above | Done. 30 API tests pass |
+| Wallet sign-in, people added by address, signed agreements, wallet-created vaults, wallet-sent transactions | Done. 37 tests pass, using real keys through `/rpc` on the local chain |
+| End-to-end demo (`npm run demo`) | Done before the latest server changes. Not re-run since |
+| Dashboard (`/`) | Written. In a headless browser, with demo people: the page loads, a typed deal becomes a draft in the workspace, missing people are added, and Confirm and Sign work. The later steps, the wallet path and the attack lab screen have not been run through the page yet, and it has not been checked by eye in a real browser |
+| Public test network (`npm run testnet`) | Written. Not yet started against Sepolia, and no transaction has been sent there |
+| Attack lab on a public network | Written. Not yet run |
+| Earlier dashboard (`/old`) | Was run end to end in a headless browser when it was served at `/`. Not re-checked since it moved |
+| Wallet console page (`/wallet`) | Written before the organiser's wallet began creating the vault. Its Lock button has not been updated for that; use the dashboard |
 
 ## Limits
 
-- **All money is simulated.** There is no real UPI or bank connection.
+- **All money is test money.** There is no real UPI or bank connection, and the server will not start on a real-money network.
 - **"Locked in" covers only money already deposited.** A contract cannot take money from someone later, so payers deposit their full share at the start.
 - **It cannot force anyone to do the work.** It controls only when money moves. The optional stake gives a payee a reason to finish, nothing more.
 - **There are no deadlines.** If a payee never marks a stage done and never leaves, that stage's money stays locked. A time limit after which the payers can reclaim it is planned.
 - **People still decide.** A person approves the work and a person judges a dispute. Settl does not decide whether work is good.
 - **It does not replace a legal contract.**
 - **Demo people have no login.** The server acts as whichever demo person a request names. Wallet people are authenticated by signature and sign their own transactions; `REQUIRE_WALLET=true` allows only them.
+- **A name is tied to an address by whoever adds it first.** Check the address shown next to each person before signing a deal.
 - **A session is a token held in memory.** It ends when the server restarts, and it is not tied to a browser or device.
-- **The chain lives in memory.** Restarting the server clears every deal and vault.
+- **The local chain lives in memory.** Restarting the server clears every deal and vault. On a public test network the vaults stay and the deals are kept in a file.
+- **On a public test network every step costs a little test coin for gas**, so each person needs some, the payees and the judge included.
 - **The offline reader understands a limited set of sentence shapes.** Text outside them is reported as unclear, not guessed at.
 - **`reconciles()` uses strict equality.** Ether forced into the vault from outside its functions would make it report false. No money can be taken out that way.
 
