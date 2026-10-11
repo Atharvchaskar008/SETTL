@@ -42,6 +42,7 @@
     offline: false, // read deals with the offline reader
     editing: null, // the deal text while it is being rewritten
     allHistory: false,
+    file: null, // a document attached to the next deal: { name, text } or { name, type, data }
     tab: null, // the part of the workspace on show; null picks the one that fits the deal's status
     menu: false,
     busy: false,
@@ -332,11 +333,12 @@
   async function createDeal() {
     const input = $("ask-text");
     const text = input.value.trim();
-    if (!text) return;
+    if (!text && !state.file) return;
     await identify();
     if (!state.me) return;
     say("Reading…");
-    const { deal } = must(await api("POST", "/deals/draft", { text, offline: state.offline || undefined }));
+    const { deal } = must(await api("POST", "/deals/draft", { text, document: state.file || undefined, offline: state.offline || undefined }));
+    state.file = null;
     input.value = "";
     grow();
     drawExamples();
@@ -499,7 +501,34 @@
     $("who").replaceChildren(...(state.menu ? [button, h("div", { class: "menu" }, items)] : [button]));
   }
 
+  /** Keeps a chosen file ready to go with the next deal. Text is read here; a PDF or a picture is read by the server's model. */
+  async function attach(file) {
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) throw new Error("The document is larger than 4 MB.");
+    if (file.type.startsWith("text/") || /\.(txt|md)$/i.test(file.name)) {
+      state.file = { name: file.name, text: await file.text() };
+    } else {
+      const url = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("The file could not be opened."));
+        reader.readAsDataURL(file);
+      });
+      state.file = { name: file.name, type: file.type, data: String(url).slice(String(url).indexOf(",") + 1) };
+    }
+    drawExamples();
+    $("ask-text").focus();
+  }
+
   function drawExamples() {
+    if (state.file) {
+      const remove = () => {
+        state.file = null;
+        drawExamples();
+      };
+      $("examples").replaceChildren(h("span", { class: "tag" }, state.file.name), h("button", { type: "button", class: "quiet", onclick: remove }, "Remove"));
+      return;
+    }
     const empty = $("ask-text").value.trim() === "";
     $("examples").replaceChildren(
       ...(empty
@@ -704,6 +733,9 @@
       ...(refused.length
         ? refused.map((entry) => h("div", { class: "r rule" }, h("span", { class: "main" }, `${entry.person} · ${entry.action}${entry.stage ? ` ${entry.stage}` : ""}`), h("span", { class: "minus" }, entry.reason)))
         : [h("p", { class: "empty" }, "Nothing")]),
+      ...(deal.document
+        ? [label("Document"), h("p", { class: "empty" }, deal.document.name, h("span", { class: "sub mono", title: deal.document.fingerprint }, `Fingerprint ${short(deal.document.fingerprint)}`))]
+        : []),
       label("Signed"),
       h(
         "p",
@@ -1052,6 +1084,12 @@
       draw(true);
     });
     $("lab-open").addEventListener("click", () => run(openLab));
+    $("ask-attach").addEventListener("click", () => $("ask-file").click());
+    $("ask-file").addEventListener("change", (event) => {
+      const [file] = event.target.files;
+      event.target.value = "";
+      run(() => attach(file));
+    });
     document.addEventListener("click", (event) => {
       // The path is used because the clicked button may already have been redrawn.
       if (state.menu && !event.composedPath().includes($("who"))) {

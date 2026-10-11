@@ -171,6 +171,33 @@ describe("before the lock", () => {
     assert.equal(named("Vikram").address, null);
   });
 
+  test("an attached text document is read like typed words, and its fingerprint is bound to the deal", async () => {
+    await api.post("/people", { names: ["Wasim", "Xena", "Yash"] });
+    const words = "Wasim pays Rs 6,000 for a mural. Xena is paid Rs 6,000 when the mural is painted. Yash settles any dispute.";
+    const draft = await api.post("/deals/draft", { person: "Wasim", document: { name: "mural.txt", text: words } });
+    assert.equal(draft.status, 201);
+    assert.deepEqual(draft.body.problems, []);
+    assert.equal(draft.body.deal.checklist.total, 6000);
+    assert.equal(draft.body.deal.document.name, "mural.txt");
+    assert.equal(draft.body.deal.text, words);
+
+    const { deal } = (await api.post(`/deals/${draft.body.deal.id}/confirm`, { person: "Wasim" })).body;
+    assert.equal(deal.agreementHash, fingerprint(deal.text, deal.checklist, deal.addresses, deal.document));
+    assert.notEqual(deal.agreementHash, fingerprint(deal.text, deal.checklist, deal.addresses));
+  });
+
+  test("a PDF needs the model, and says so when the model is off", async () => {
+    await api.post("/people", { names: ["Zoya"] });
+    const refused = await api.post("/deals/draft", {
+      person: "Zoya",
+      document: { name: "deal.pdf", type: "application/pdf", data: Buffer.from("%PDF-1.4").toString("base64") },
+    });
+    assert.equal(refused.status, 409);
+    assert.equal(refused.body.rule, "document-needs-model");
+    assert.equal((await api.post("/deals/draft", { person: "Zoya", document: { name: "x.zip", type: "application/zip", data: "AAAA" } })).body.rule, "document-kind");
+    assert.equal((await api.post("/deals/draft", { person: "Zoya" })).status, 400);
+  });
+
   test("an edit that breaks the rules cannot be confirmed", async () => {
     const draft = await api.post("/deals/draft", { text: FREELANCE.text, person: "Riya" });
     const id = draft.body.deal.id;

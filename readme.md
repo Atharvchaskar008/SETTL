@@ -250,7 +250,7 @@ Stage numbers in the API count from 1.
 |---|---|
 | `GET /health` | Server and chain are up |
 | `GET /people`, `POST /people` | List or add people. `{ name }` adds a demo person. `{ name, address }` adds a person by wallet address; they act once they sign in with that wallet. On the local chain a neutral "Platform Mediator" exists by default and can be used as the judge |
-| `POST /deals/draft` | Deal text in, proposed checklist and problem list out |
+| `POST /deals/draft` | Deal text in, proposed checklist and problem list out. Takes an optional `document`: `{ name, text }` for a text file, or `{ name, type, data }` with base64 content for a PDF or a picture |
 | `PUT /deals/:id/checklist` | The organiser edits the checklist. Any edit clears earlier agreements |
 | `PUT /deals/:id/text` | The organiser rewrites the deal's words and has them read again. Clears earlier agreements |
 | `DELETE /deals/:id` | The organiser discards a deal that was never locked |
@@ -276,7 +276,7 @@ Stage numbers in the API count from 1.
 
 | Part | What it does |
 |---|---|
-| **The bar** | Type a deal in plain words and press Enter. Four one-click examples sit under it. The "AI" switch chooses between the model and the offline reader |
+| **The bar** | Type a deal in plain words and press Enter, or use **Attach** to add the agreement as a file. Four one-click examples sit under it. The "AI" switch chooses between the model and the offline reader |
 | **The workspaces** | The deals you organise or are part of, each with its amount, status and progress. Every workspace has its own link |
 | **The open workspace** | Four steps (Check, Sign, Fund, Pay) and the one thing you can do next, then three tabs. **Workspace**: the escrow totals, each person with what they have in escrow, and the stages. **Agreement**: the whole deal in plain sentences, what happens if someone breaks it, the attempts refused so far, who has signed, and the original words. **Activity**: every step and every refusal |
 
@@ -288,6 +288,8 @@ How it behaves:
 - **It works with a wallet or without one.** With a wallet, every signature and transaction comes from the wallet. Without one, on the local chain, you pick or add a demo person from the menu at the top right and the server acts for them.
 - **Once a deal is over, a settlement table** shows what each person paid in, received and ended up with, and whether it adds up. The figures come from the vault's own events.
 - **"Attacks" opens the attack lab**, which runs the four attacks and shows each step and its outcome.
+
+**Attached documents.** A text file is used as it is, and works with the AI switched off. A PDF or a picture has its words copied out by the model, so it needs the model; with the AI off it is refused with that reason. Either way the result is only more text for the reader: every stage must still quote it, the organiser sees the copied-out words under Agreement, and a person must confirm. A fingerprint of the file itself goes into the agreement fingerprint stored in the vault. A sample is in [server/fixtures/06-photography-agreement.pdf](server/fixtures/06-photography-agreement.pdf). Limits: 4 MB and 20,000 characters.
 
 The earlier dashboard in [web/](web/) is still served at `/old`, connected through [server/public/settl-bridge.js](server/public/settl-bridge.js).
 

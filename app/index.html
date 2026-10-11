@@ -18,6 +18,8 @@
   <main>
     <form class="ask" id="ask">
       <textarea id="ask-text" rows="1" placeholder="Describe a deal…" aria-label="Describe a deal" autofocus></textarea>
+      <input id="ask-file" type="file" accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.webp,text/plain,application/pdf,image/*" hidden>
+      <button class="quiet toggle" id="ask-attach" type="button" title="Attach the agreement as a text file, a PDF or a picture">Attach</button>
       <button class="quiet toggle" id="ask-ai" type="button"></button>
       <button class="primary go" id="ask-go" type="submit" aria-label="Create deal">↵</button>
     </form>

@@ -15,7 +15,7 @@
 const express = require("express");
 const { readDeal } = require("./checker");
 const { validate, membersOf, sameName } = require("./checker/validate");
-const { normalise } = require("./checker/model");
+const { normalise, providerFrom, transcribe } = require("./checker/model");
 const { findPerson, signerFor, WALLET } = require("./people");
 const chain = require("./chain");
 
@@ -23,6 +23,49 @@ const { ethers } = chain;
 
 // The last part of a route's path names the action, except for these.
 const ACTION_NAMES = { checklist: "edit", text: "rewrite", transactions: "report" };
+
+const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
+const MAX_DOCUMENT_CHARACTERS = 20000;
+const READABLE_BY_MODEL = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
+
+/** A problem with an attached document, said in plain words. */
+const documentProblem = (rule, reason) => Object.assign(new Error(reason), { rule });
+
+/**
+ * The words of an attached document, and a fingerprint of the file itself.
+ *
+ * A text file is used as it is. A PDF or a picture has its words copied out by
+ * the model, so it needs the model to be available. Either way the result is
+ * only text for the reader: it goes through the same checks as typed text.
+ */
+async function readDocument(document, readerEnv) {
+  const name = (typeof document.name === "string" && document.name.trim().slice(0, 80)) || "document";
+  let bytes;
+  let text;
+  if (typeof document.text === "string") {
+    bytes = Buffer.from(document.text, "utf8");
+    text = document.text;
+  } else if (typeof document.data === "string" && READABLE_BY_MODEL.has(document.type)) {
+    bytes = Buffer.from(document.data, "base64");
+    if (bytes.length > MAX_DOCUMENT_BYTES) throw documentProblem("document-too-large", "The document is larger than 4 MB.");
+    const provider = providerFrom(readerEnv);
+    if (!provider) {
+      throw documentProblem("document-needs-model", "A PDF or a picture needs the AI to read it. Attach a text file, or switch the AI on.");
+    }
+    try {
+      text = await transcribe({ data: document.data, type: document.type }, provider, readerEnv);
+    } catch (error) {
+      throw documentProblem("document-unread", `The document could not be read: ${error.message} Attach a text file instead.`);
+    }
+  } else {
+    throw documentProblem("document-kind", "Attach a text file, a PDF or a picture.");
+  }
+  if (bytes.length > MAX_DOCUMENT_BYTES) throw documentProblem("document-too-large", "The document is larger than 4 MB.");
+  text = text.replace(/\r\n/g, "\n").trim();
+  if (!text) throw documentProblem("document-empty", "The document has no words that can be read.");
+  if (text.length > MAX_DOCUMENT_CHARACTERS) throw documentProblem("document-too-long", "The document is too long. Attach only the part that sets out the deal.");
+  return { name, fingerprint: ethers.keccak256(bytes), text };
+}
 
 function dealRoutes({ store, env, requireWallet = false }) {
   const router = express.Router();
@@ -48,6 +91,7 @@ function dealRoutes({ store, env, requireWallet = false }) {
       fallbackReason: deal.fallbackReason,
       dropped: deal.dropped,
       text: deal.text,
+      document: deal.document || null,
       checklist: deal.checklist,
       members,
       agreed: deal.agreed,
@@ -257,23 +301,38 @@ function dealRoutes({ store, env, requireWallet = false }) {
   router.post(
     "/deals/draft",
     wrap(async (request, response) => {
-      const text = request.body && request.body.text;
-      if (typeof text !== "string" || !text.trim()) {
-        return response.status(400).json({ error: 'Send the deal as text in "text".' });
+      const body = request.body || {};
+      const typed = typeof body.text === "string" ? body.text.trim() : "";
+      if (!typed && !body.document) {
+        return response.status(400).json({ error: 'Send the deal as text in "text", or attach a document.' });
       }
       const organiser = actorOf(request, response);
       if (!organiser) return;
 
       // "offline": true asks for the offline reader for this one draft, whatever keys are
       // configured. It gives the same result every time, and shows the product working without a model.
-      const offline = request.body.offline === true;
-      const read = await readDeal(text, { env: offline ? { ...env, CHECKER_MODE: "rules" } : env });
+      const offline = body.offline === true;
+      const readerEnv = offline ? { ...env, CHECKER_MODE: "rules" } : env;
+
+      // An attached document adds its words to the typed ones. From here on they are one text.
+      let document = null;
+      if (body.document) {
+        try {
+          document = await readDocument(body.document, readerEnv);
+        } catch (error) {
+          if (!error.rule) throw error;
+          return response.status(409).json({ refused: true, rule: error.rule, reason: error.message });
+        }
+      }
+      const text = document ? [typed, document.text].filter(Boolean).join("\n\n") : typed;
+      const read = await readDeal(text, { env: readerEnv });
       const deal = store.addDeal({
         id: store.nextDealId(),
         organiser: organiser.name,
         createdAt: now(),
         status: "draft",
         text,
+        document: document ? { name: document.name, fingerprint: document.fingerprint } : null,
         checklist: read.checklist,
         readBy: read.readBy,
         model: read.model,
@@ -418,7 +477,7 @@ function dealRoutes({ store, env, requireWallet = false }) {
       // Each member's account is fixed here and becomes part of what everyone signs,
       // so the vault can only ever be created for exactly these accounts.
       deal.addresses = Object.fromEntries(membersOf(deal.checklist).map((name) => [name, findPerson(store, name).address]));
-      deal.agreementHash = fingerprint(deal.text, deal.checklist, deal.addresses);
+      deal.agreementHash = fingerprint(deal.text, deal.checklist, deal.addresses, deal.document);
       record(deal, { person: actor.name, action: "confirm", detail: "Checklist confirmed. Waiting for everyone to agree." });
 
       response.json({ deal: view(deal) });
@@ -847,8 +906,9 @@ function stableStringify(value) {
  * The fingerprint stored in the vault. It ties the vault to exactly this text,
  * this checklist and these accounts: change any of them and it no longer matches.
  */
-function fingerprint(text, checklist, addresses = {}) {
-  return ethers.id(stableStringify({ text, checklist, addresses }));
+function fingerprint(text, checklist, addresses = {}, document = null) {
+  // An attached file's own fingerprint is included, so the vault is tied to that exact file too.
+  return ethers.id(stableStringify({ text, checklist, addresses, ...(document ? { document: document.fingerprint } : {}) }));
 }
 
 /** The exact words a member signs to agree. The fingerprint binds them to this text and checklist. */

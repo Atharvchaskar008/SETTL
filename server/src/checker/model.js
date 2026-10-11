@@ -191,4 +191,54 @@ async function readByModel(dealText, provider, env) {
   return normalise(parseAnswer(answer));
 }
 
-module.exports = { readByModel, providerFrom, normalise, parseAnswer, CHECKLIST_SCHEMA };
+const TRANSCRIBE =
+  "Copy out the text of this document exactly as it is written, in reading order. Do not summarise, correct, translate or add anything. Answer with the text only.";
+
+/**
+ * Reads the words out of a PDF or a picture of a document. The answer is plain
+ * text and is treated exactly like text a person typed: the same reader and
+ * the same checks run on it afterwards, and a person still has to confirm.
+ *
+ * @param {{ data: string, type: string }} file  base64 content and its media type
+ * @throws when the model is unavailable
+ */
+async function transcribe(file, provider, env) {
+  if (provider.name === "claude") {
+    const { Anthropic } = require("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 0 });
+    const source = { type: "base64", media_type: file.type, data: file.data };
+    const response = await client.messages.create(
+      {
+        model: provider.model,
+        max_tokens: 8000,
+        messages: [
+          { role: "user", content: [{ type: file.type === "application/pdf" ? "document" : "image", source }, { type: "text", text: TRANSCRIBE }] },
+        ],
+      },
+      { timeout: TIMEOUT_MS }
+    );
+    return response.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(provider.model)}:generateContent`;
+  let response;
+  try {
+    response = await fetch(`${url}?key=${encodeURIComponent(env.GEMINI_API_KEY)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ inlineData: { mimeType: file.type, data: file.data } }, { text: TRANSCRIBE }] }],
+        generationConfig: { temperature: 0 },
+      }),
+    });
+  } catch (error) {
+    throw new Error(error.name === "TimeoutError" ? "The model did not answer in time." : "The model could not be reached.");
+  }
+  if (!response.ok) throw new Error(`The model returned an error (${response.status}).`);
+  const parts = (await response.json()).candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) throw new Error("The model returned no text.");
+  return parts.map((part) => part.text || "").join("");
+}
+
+module.exports = { readByModel, transcribe, providerFrom, normalise, parseAnswer, CHECKLIST_SCHEMA };

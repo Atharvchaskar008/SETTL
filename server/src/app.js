@@ -35,7 +35,7 @@ async function createApp({ env = process.env, storePath } = {}) {
   const requireWallet = !local || String(env.REQUIRE_WALLET || "").toLowerCase() === "true";
   if (!requireWallet) await addPerson(store, MEDIATOR);
 
-  app.use(express.json({ limit: "200kb" }));
+  app.use(express.json({ limit: "8mb" }));
 
   const auth = createAuth({ store });
   app.use(auth.identify);
