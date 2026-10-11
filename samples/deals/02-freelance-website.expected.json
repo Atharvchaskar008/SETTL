@@ -1,0 +1,32 @@
+{
+  "title": "Freelance Website Development",
+  "payers": [
+    { "name": "Vikram Malhotra", "share": 30000 }
+  ],
+  "judge": { "name": "Siddharth Rao" },
+  "stages": [
+    {
+      "title": "Design",
+      "payee": "Ananya Sen",
+      "amount": 10000,
+      "condition": "the client receives the design files for five pages",
+      "source": "The first stage of 10000 rupees for design is released once the client receives the design files for five pages."
+    },
+    {
+      "title": "Development",
+      "payee": "Ananya Sen",
+      "amount": 15000,
+      "condition": "all web pages are deployed to the staging server and working",
+      "source": "The second stage of 15000 rupees for development is released when all web pages are deployed to the staging server and working."
+    },
+    {
+      "title": "Launch",
+      "payee": "Ananya Sen",
+      "amount": 5000,
+      "condition": "the website is deployed to the production domain and accessible publicly",
+      "source": "The final stage of 5000 rupees for launch is released once the website is deployed to the production domain and accessible publicly."
+    }
+  ],
+  "unclear": [],
+  "total": 30000
+}
