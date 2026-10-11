@@ -207,7 +207,10 @@ function dealRoutes({ store, env, requireWallet = false }) {
       const organiser = actorOf(request, response);
       if (!organiser) return;
 
-      const read = await readDeal(text, { env });
+      // "offline": true asks for the offline reader for this one draft, whatever keys are
+      // configured. It gives the same result every time, and shows the product working without a model.
+      const offline = request.body.offline === true;
+      const read = await readDeal(text, { env: offline ? { ...env, CHECKER_MODE: "rules" } : env });
       const deal = store.addDeal({
         id: store.nextDealId(),
         organiser: organiser.name,

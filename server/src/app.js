@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const express = require("express");
 const hre = require("hardhat");
 const { createStore } = require("./store");
@@ -30,6 +31,17 @@ async function createApp({ env = process.env, storePath } = {}) {
   app.use(auth.identify);
 
   const path = require("path");
+  // The dashboard page is served with one extra script: the bridge that connects
+  // its screens to this server. The files in web/ themselves are left untouched.
+  app.get(["/", "/index.html"], (request, response, next) => {
+    fs.readFile(path.join(__dirname, "../../web/index.html"), "utf8", (error, html) => {
+      if (error) return next();
+      response.type("html").send(html.replace("</body>", '  <script src="/settl-bridge.js"></script>\n</body>'));
+    });
+  });
+  app.get("/settl-bridge.js", (request, response) => {
+    response.sendFile(path.join(__dirname, "../public/settl-bridge.js"));
+  });
   app.use(express.static(path.join(__dirname, "../../web")));
   app.use("/site", express.static(path.join(__dirname, "../../site")));
   // The wallet console, and the browser build of ethers it uses, served locally so it works offline.
@@ -47,6 +59,26 @@ async function createApp({ env = process.env, storePath } = {}) {
         chain: { network: hre.network.name, block, accounts: accounts.length },
         funds: "simulated",
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Starts again from nothing: a fresh chain, no deals, and only the built-in
+  // mediator. For demonstrations. Wallet sessions end, because their people are gone.
+  app.post("/reset", async (request, response, next) => {
+    try {
+      if (requireWallet) {
+        return response.status(409).json({
+          refused: true,
+          rule: "wallet-only",
+          reason: "Reset is switched off when wallet sign-in is required.",
+        });
+      }
+      await hre.network.provider.send("hardhat_reset");
+      store.reset();
+      await addPerson(store, MEDIATOR);
+      response.json({ reset: true });
     } catch (error) {
       next(error);
     }

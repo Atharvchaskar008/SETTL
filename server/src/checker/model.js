@@ -97,20 +97,35 @@ async function callClaude(dealText, model, env) {
   return block.text;
 }
 
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function callGemini(dealText, model, env) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  let response;
-  try {
-    response = await fetch(`${url}?key=${encodeURIComponent(env.GEMINI_API_KEY)}`, {
+  const deadline = AbortSignal.timeout(TIMEOUT_MS);
+  const post = (thinking) =>
+    fetch(`${url}?key=${encodeURIComponent(env.GEMINI_API_KEY)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: deadline,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: `${SYSTEM}\n\nAnswer with one JSON object in this shape and nothing else:\n${JSON.stringify(emptyChecklist())}` }] },
         contents: [{ role: "user", parts: [{ text: userPrompt(dealText) }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0 },
+        generationConfig: { responseMimeType: "application/json", temperature: 0, ...thinking },
       }),
     });
+
+  let response;
+  try {
+    // This is a short extraction, so the model is asked to think only a little:
+    // it answers in a few seconds, not fifteen. Models that do not take the
+    // setting answer 400, and the request is sent again without it.
+    response = await post({ thinkingConfig: { thinkingLevel: "low" } });
+    if (response.status === 400) response = await post({});
+    // "Busy" and "slow down" pass quickly, so they get one more try.
+    if (response.status === 503 || response.status === 429) {
+      await pause(1500);
+      response = await post({});
+    }
   } catch (error) {
     throw new Error(error.name === "TimeoutError" ? "The model did not answer in time." : "The model could not be reached.");
   }

@@ -213,6 +213,8 @@ function readByRules(text) {
     new RegExp(`^(${NAME})\\s+(?:will\\s+|shall\\s+)?(?:settles?|decides?|resolves?)\\s+(?:any\\s+|all\\s+|every\\s+|the\\s+)*disputes?`),
     new RegExp(`[Dd]isputes?\\s+(?:will\\s+)?(?:go(?:es)?|are\\s+referred|be\\s+referred|are\\s+sent|be\\s+settled|are\\s+settled|be\\s+decided|are\\s+decided)\\s+(?:to|by)\\s+(${NAME})`),
     new RegExp(`(?:[Jj]udge|[Aa]rbiter|[Aa]rbitrator|[Mm]ediator)\\s+(?:is|will\\s+be)\\s+(${NAME})`),
+    new RegExp(`^(${NAME})\\s+(?:will\\s+|shall\\s+)?(?:arbitrates?|mediates?)\\b`),
+    new RegExp(`^(${NAME})\\s+is\\s+the\\s+(?:judge|arbiter|arbitrator|mediator)\\b`),
   ];
   const paysPattern = new RegExp(
     `^(${NAMES})\\s+((?:will\\s+|shall\\s+|must\\s+|each\\s+|agrees?\\s+to\\s+)*)pays?\\s+(?:(${NAME})\\s+)?(?=${AMOUNT})`
@@ -351,7 +353,8 @@ function readByRules(text) {
 
   checklist.unclear.push(...vaguePhrasesIn(text));
 
-  checklist.title = (sentences[0] || "").replace(/[.!?;]+$/, "").slice(0, 70);
+  // A short name for the deal: the opening of its first sentence, up to any colon.
+  checklist.title = (sentences[0] || "").split(":")[0].replace(/[.!?;]+$/, "").trim().slice(0, 70);
   return checklist;
 }
 

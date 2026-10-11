@@ -442,3 +442,31 @@ describe("attack lab", () => {
     assert.equal((await api.post("/attacks/nope")).status, 404);
   });
 });
+
+describe("starting again", () => {
+  let api;
+  before(async () => {
+    api = await startApi();
+  });
+  after(() => api.close());
+
+  test("a reset clears every deal and person, and gives a fresh chain", async () => {
+    const id = await agreedDeal(api, FREELANCE);
+    await api.post(`/deals/${id}/lock`, { person: "Riya" });
+    await api.post(`/deals/${id}/deposit`, { person: "Riya" });
+    assert.equal((await api.get("/deals")).body.deals.length, 1);
+    assert.ok((await api.get("/health")).body.chain.block > 0);
+
+    assert.deepEqual((await api.post("/reset")).body, { reset: true });
+
+    assert.deepEqual((await api.get("/deals")).body.deals, []);
+    assert.deepEqual((await api.get("/people")).body.people.map((person) => person.name), ["Platform Mediator"]);
+    assert.equal((await api.get("/health")).body.chain.block, 0);
+    assert.equal((await api.get(`/deals/${id}`)).status, 404);
+
+    // Everything works again from the start, with deal numbers starting over.
+    const again = await agreedDeal(api, FREELANCE);
+    assert.equal(again, "deal-1");
+    assert.equal((await api.post(`/deals/${again}/lock`, { person: "Riya" })).status, 201);
+  });
+});

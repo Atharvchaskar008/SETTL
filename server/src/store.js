@@ -35,6 +35,12 @@ function createStore(filePath = DEFAULT_PATH) {
       return deal;
     },
     findDeal: (id) => state.deals.find((deal) => deal.id === id),
+    /** Forgets every person and deal. */
+    reset() {
+      state.people.length = 0;
+      state.deals.length = 0;
+      save();
+    },
     nextDealId: () => `deal-${state.deals.length + 1}`,
   };
 }

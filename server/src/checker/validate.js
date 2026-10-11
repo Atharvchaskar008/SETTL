@@ -117,28 +117,60 @@ function validate(checklist, text, people) {
   return problems;
 }
 
+const EDGE_PUNCTUATION = /^[\s"'“”‘’.,;:!?()]+|[\s"'“”‘’.,;:!?()]+$/g;
+const escapeForPattern = (word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Finds where a reader's quote sits in the deal text and returns the text's
+ * own wording for it, or null if the quote is not there.
+ *
+ * A model sometimes copies a phrase with a stray word or comma at either end
+ * ("and Rs 20,000 after key handover" for "Rs 20,000 after key handover").
+ * Such a quote is still grounded in the text, so it is matched on its longest
+ * run of words that does appear, and what is returned is always an exact
+ * piece of the text. A quote with too little in common with the text is not
+ * matched at all.
+ */
+function findQuote(text, source) {
+  if (typeof source !== "string" || source.trim() === "") return null;
+  if (text.includes(source)) return source;
+
+  const trimmed = source.replace(EDGE_PUNCTUATION, "");
+  if (trimmed && text.includes(trimmed)) return trimmed;
+
+  // First with every word and only the spacing allowed to differ, then with up to three words dropped from the ends.
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  for (let dropped = 0; dropped <= 3; dropped++) {
+    for (let fromStart = 0; fromStart <= dropped; fromStart++) {
+      const kept = words.slice(fromStart, words.length - (dropped - fromStart));
+      if (kept.length < 3 || kept.length < words.length * 0.6) continue;
+      const match = text.match(new RegExp(kept.map(escapeForPattern).join("\\s+")));
+      if (match) return match[0];
+    }
+  }
+  return null;
+}
+
 /**
  * Enforces "every item a reader proposes must point at the words it came from".
- * A stage must quote text that is in the deal, exactly. An unclear item may
- * have no quote (it can be about something missing), but a quote it does give
- * must be exact. Anything else is dropped and reported, never silently kept.
+ *
+ * A stage must quote the deal. Its quote is replaced by the matching piece of
+ * the text itself, and a stage whose quote cannot be found is dropped and
+ * reported, never silently kept. An unclear point is a warning, so it is
+ * always kept; a quote of its that cannot be found is simply cleared.
  *
  * @returns {{ checklist: object, dropped: { kind: string, label: string, source: string }[] }}
  */
 function dropUnsourced(checklist, text) {
   const dropped = [];
-  const quoted = (source) => typeof source === "string" && source.trim() !== "" && text.includes(source);
 
-  const stages = checklist.stages.filter((stage) => {
-    if (quoted(stage.source)) return true;
-    dropped.push({ kind: "stage", label: stage.title || "Untitled stage", source: stage.source || "" });
-    return false;
-  });
-  const unclear = checklist.unclear.filter((item) => {
-    if (!item.source || quoted(item.source)) return true;
-    dropped.push({ kind: "unclear", label: item.issue || "Unclear point", source: item.source });
-    return false;
-  });
+  const stages = [];
+  for (const stage of checklist.stages) {
+    const quote = findQuote(text, stage.source);
+    if (quote) stages.push({ ...stage, source: quote });
+    else dropped.push({ kind: "stage", label: stage.title || "Untitled stage", source: stage.source || "" });
+  }
+  const unclear = checklist.unclear.map((item) => ({ ...item, source: findQuote(text, item.source) || "" }));
 
   const kept = { ...checklist, stages, unclear };
   if (dropped.some((item) => item.kind === "stage")) {
@@ -155,4 +187,4 @@ function dropUnsourced(checklist, text) {
   return { checklist: kept, dropped };
 }
 
-module.exports = { validate, dropUnsourced, emptyChecklist, membersOf, sameName };
+module.exports = { validate, dropUnsourced, findQuote, emptyChecklist, membersOf, sameName };

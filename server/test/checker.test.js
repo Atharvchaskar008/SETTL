@@ -5,7 +5,7 @@ const path = require("node:path");
 
 const { readDeal } = require("../src/checker");
 const { readByRules, parseAmount } = require("../src/checker/rules");
-const { validate, dropUnsourced, membersOf } = require("../src/checker/validate");
+const { validate, dropUnsourced, findQuote, membersOf } = require("../src/checker/validate");
 const { normalise, parseAnswer } = require("../src/checker/model");
 
 const fixture = (name) => fs.readFileSync(path.join(__dirname, "..", "fixtures", name), "utf8");
@@ -286,5 +286,34 @@ describe("model path and fallback", () => {
     const checklist = readByRules(text);
     checklist.unclear.push({ issue: "No deadline", question: "By when?", source: "" });
     assert.equal(dropUnsourced(checklist, text).checklist.unclear.length, 1);
+  });
+
+  test("a quote with a stray word or comma at its edge is matched to the text's own wording", () => {
+    const deal = "Kabir pays Aman Rs 50,000: Rs 20,000 after paint and deep clean, Rs 20,000 after key handover, and Rs 10,000 if everything stays clean.";
+    assert.equal(findQuote(deal, "Rs 20,000 after key handover"), "Rs 20,000 after key handover");
+    assert.equal(findQuote(deal, "and Rs 20,000 after key handover"), "Rs 20,000 after key handover");
+    assert.equal(findQuote(deal, '"Rs 20,000 after key handover."'), "Rs 20,000 after key handover");
+    assert.equal(findQuote(deal, "Rs 20,000  after paint\nand deep clean"), "Rs 20,000 after paint and deep clean");
+    // Whatever comes back is always an exact piece of the deal.
+    for (const quote of ["and Rs 20,000 after key handover", "then Rs 10,000 if everything stays clean please"]) {
+      assert.ok(deal.includes(findQuote(deal, quote)));
+    }
+  });
+
+  test("a quote that is not in the text is not matched", () => {
+    const deal = "Kabir pays Aman Rs 50,000: Rs 20,000 after paint and deep clean, Rs 20,000 after key handover.";
+    assert.equal(findQuote(deal, "Aman also gets a bonus of Rs 5,000"), null);
+    assert.equal(findQuote(deal, "Rs 20,000"), "Rs 20,000");
+    assert.equal(findQuote(deal, "Rs 99,000 after key"), null);
+    assert.equal(findQuote(deal, ""), null);
+    assert.equal(findQuote(deal, undefined), null);
+  });
+
+  test("an unclear point is kept even when its quote cannot be found, with the quote cleared", () => {
+    const checklist = readByRules(text);
+    checklist.unclear.push({ issue: "Vague", question: "What counts?", source: "words that are not in the deal" });
+    const result = dropUnsourced(checklist, text);
+    assert.deepEqual(result.checklist.unclear, [{ issue: "Vague", question: "What counts?", source: "" }]);
+    assert.deepEqual(result.dropped, []);
   });
 });

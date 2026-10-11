@@ -205,7 +205,7 @@ Every result records which reader produced it (`readBy`) and, if the offline rea
 
 ### What both readers must obey
 
-- **Every stage must quote the deal text exactly.** A stage that does not is dropped and reported, never silently kept ([validate.js](server/src/checker/validate.js)).
+- **Every stage must quote the deal text.** The quote is matched against the text and replaced by the text's own wording, so what is stored is always an exact piece of the deal. A stray word or comma at the edge of a quote is tolerated; a stage whose quote cannot be found is dropped and reported, never silently kept ([validate.js](server/src/checker/validate.js)).
 - **Nothing is invented.** A missing name, amount or judge stays empty and becomes an unclear point with a question.
 - **Vague wording is flagged.** Phrases such as "satisfactory", "a reasonable time" or "about ₹20,000" each become an unclear point that quotes the phrase.
 - **Shared and repeating payments are expanded.** "Each of four people is paid ₹25,000" becomes four stages, and "₹1,200 every month for 12 months" becomes twelve.
@@ -222,6 +222,17 @@ A checklist cannot be confirmed while any of these is true:
 - any unclear point is still open.
 
 These checks are plain code. The model has no say in them.
+
+### How well the readers do, measured
+
+`npm run score` reads the eight sample deals in [samples/deals/](samples/deals/), which are written in free everyday language, and compares each result with the expected checklist written beside it. Five things are checked per deal: the payers and their shares, the judge, the number of stages, the stage total, and whether a clean deal was left clean and a flawed one flagged.
+
+| Reader | Checks right | Time per deal |
+|---|---|---|
+| Model reader (Gemini `gemini-3.5-flash-lite`) | 36 of 40 | about 2 seconds |
+| Offline reader | 8 of 40 | instant |
+
+This is one run on eight deals, so treat it as an indication, and expect the model's figure to move a little between runs. It shows what each reader is for. The model reads ordinary writing. The offline reader only understands a fixed set of sentence shapes, such as those in [server/fixtures/](server/fixtures/), which it reads fully; on anything else it reports that it could not read the line instead of guessing. It keeps the product working without a model, with less reading ability.
 
 ## The server
 
@@ -251,6 +262,16 @@ Stage numbers in the API count from 1.
 | `POST /rpc` | The chain, for wallets |
 | `POST /deals/:id/transactions` | A wallet person reports the transaction their wallet sent |
 | `GET /contract` | The vault's interface, chain ID and RPC path, for clients that call the vault directly |
+| `POST /reset` | Starts again from nothing: a fresh chain, no deals, only the built-in mediator. For demonstrations |
+
+### The dashboard
+
+`npm start` serves the dashboard in [web/](web/) at `http://localhost:3000`. It has a deal list, a four-step wizard (describe, review, agree, lock), a deal screen with the stages and the money bar, a final summary and the attack lab.
+
+- **It works with demo people.** The "Acting as" switch names who is acting, so one person can play every role in front of an audience. "Try anything" shows every button to everyone, so a wrong move can be tried and seen to be refused.
+- **Anyone a deal names is added as a demo person** when the deal is drafted, so a deal can be typed with any names.
+- **It talks to the server through [server/public/settl-bridge.js](server/public/settl-bridge.js)**, a script the server adds to the page. It translates between the screens' data format and the server's, shows the points an organiser must resolve, and adds the stake and leave actions. Nothing in `web/` has to change for it to work.
+- **People who sign in with their own wallet use `/wallet` instead.** The dashboard links to it.
 
 ## Wallets and real users
 
@@ -322,10 +343,13 @@ server/
   src/deals.js                deal routes
   src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
+  public/settl-bridge.js      connects the dashboard in web/ to this server
   fixtures/                   five sample deals
   test/                       checker tests, API tests and wallet tests
+web/                          the dashboard, served at /
 wallet/index.html             the wallet console, served at /wallet
 scripts/demo.js               end-to-end run of five deals and four attacks
+scripts/score.js              scores the deal checker against the sample deals
 samples/                      more sample deals with their expected checklists
 hardhat.config.js, package.json, .env.example
 ```
@@ -360,7 +384,8 @@ npm start
 | `npm run test:contract` | Contract tests only |
 | `npm run test:server` | Server tests only |
 | `npm run demo` | Runs five deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
-| `npm start` | Starts the server at `http://localhost:3000` |
+| `npm run score` | Scores the deal checker against the sample deals in `samples/deals/` |
+| `npm start` | Starts the server and the dashboard at `http://localhost:3000`, and the wallet console at `/wallet` |
 
 ### What the demo shows
 
@@ -389,7 +414,7 @@ curl -X POST localhost:3000/attacks/re-entrancy
 
 ### Configuration
 
-Copy `.env.example` to `.env`. Every value is optional.
+Copy `.env.example` to `.env` and put your values in `.env`. Every value is optional. Never put a real key in `.env.example`: that file is committed, while `.env` is ignored by git.
 
 | Variable | Meaning |
 |---|---|
@@ -409,13 +434,13 @@ With no key, the offline reader is used and everything else works the same.
 |---|---|
 | Vault contract, including the optional stake | Done. 81 contract tests pass |
 | Attack tests and the WeakVault comparison | Done |
-| Deal checker: offline reader, validation, fallback | Done. 31 tests pass |
-| Deal checker: model reader | Written. Not yet run against a live key; `npm run demo` exercises it when a key is set |
-| Server: every route in the table above | Done. 26 API tests pass |
+| Deal checker: offline reader, validation, fallback | Done. 34 tests pass |
+| Deal checker: model reader | Done. Run against Gemini (`gemini-3.5-flash-lite`): see the measured figures above. The Claude path has not been run against a live key |
+| Server: every route in the table above | Done. 27 API tests pass |
 | Wallet sign-in, signed agreements, wallet-sent transactions | Done. 31 tests pass, using real keys through `/rpc` |
 | Wallet console page (`/wallet`) | Written. Its logic passes a scripted run with a stand-in wallet; not yet tried with MetaMask |
 | End-to-end demo (`npm run demo`) | Done. Five deals and four attacks, with every step checked |
-| Web app | Not built yet |
+| Dashboard (`/`) | Connected to the server. A full deal, the stake flow, the summary, the attack lab and reset were run through the real page in a headless browser environment; not yet checked by eye in a real browser |
 
 ## Limits
 
