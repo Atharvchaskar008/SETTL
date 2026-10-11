@@ -42,6 +42,7 @@
     offline: false, // read deals with the offline reader
     editing: null, // the deal text while it is being rewritten
     allHistory: false,
+    tab: null, // the part of the workspace on show; null picks the one that fits the deal's status
     menu: false,
     busy: false,
     drawn: "",
@@ -278,7 +279,16 @@
   async function sendFromWallet(transaction) {
     await useChain();
     const signer = await walletProvider().getSigner(state.me.address);
-    const sent = await signer.sendTransaction({ to: transaction.to, data: transaction.data, value: transaction.value });
+    const request = { to: transaction.to, data: transaction.data, value: transaction.value };
+    if (!state.chain.local) {
+      // A wallet's default tip is far more than a quiet test network needs, and creating a
+      // vault takes a lot of gas there. A small tip keeps the scarce test coin for the deal itself.
+      const tip = ethers.parseUnits("0.1", "gwei");
+      const block = await signer.provider.getBlock("latest");
+      request.maxPriorityFeePerGas = tip;
+      request.maxFeePerGas = ((block && block.baseFeePerGas) || 0n) * 2n + tip;
+    }
+    const sent = await signer.sendTransaction(request);
     say("Waiting for the chain…");
     await sent.wait();
     return sent.hash;
@@ -333,6 +343,8 @@
     state.openId = deal.id;
     state.lab = null;
     state.editing = null;
+    state.tab = null;
+    history.replaceState(null, "", `#${deal.id}`);
     say(!state.offline && deal.readBy !== "model" && deal.fallbackReason ? "AI unavailable. Read offline." : "");
   }
 
@@ -428,7 +440,7 @@
 
   function draw(force) {
     const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.closest("#deal, #who");
-    const picture = JSON.stringify([state.me, state.balance, state.people, state.deals, state.deal, state.history, state.summary, state.lab, state.editing !== null, state.allHistory, state.menu, state.offline]);
+    const picture = JSON.stringify([state.me, state.balance, state.people, state.deals, state.deal, state.history, state.summary, state.lab, state.editing !== null, state.allHistory, state.menu, state.offline, state.tab]);
     if (!force && (typing || picture === state.drawn)) return;
     state.drawn = picture;
     drawTop();
@@ -453,7 +465,11 @@
     if (state.demo) {
       for (const person of state.people.filter((candidate) => candidate.kind === "demo")) {
         const on = state.me && !state.wallet && same(person.name, state.me.name);
-        items.push(h("button", { type: "button", class: on ? "on" : "", onclick: () => run(() => actAsDemo(person.name)) }, person.name));
+        const pick = () => {
+          state.menu = false;
+          run(() => actAsDemo(person.name));
+        };
+        items.push(h("button", { type: "button", class: on ? "on" : "", onclick: pick }, person.name));
       }
     }
     if (window.ethereum && !state.wallet) items.push(h("button", { type: "button", onclick: () => run(connect) }, "Connect wallet"));
@@ -516,6 +532,8 @@
         state.lab = null;
         state.editing = null;
         state.allHistory = false;
+        state.tab = null;
+        history.replaceState(null, "", `#${deal.id}`);
         refresh(true);
       };
       return h(
@@ -527,7 +545,7 @@
         h("span", { class: "sub" }, status.word, deal.status === "locked" ? ` · ${deal.stagesSettled}/${deal.stageCount}` : "")
       );
     });
-    $("deals").replaceChildren(label("Deals"), ...(rows.length ? rows : [h("p", { class: "empty" }, "None yet")]));
+    $("deals").replaceChildren(label("Workspaces"), ...(rows.length ? rows : [h("p", { class: "empty" }, "None yet")]));
   }
 
   // One deal, top to bottom: what it is, where it stands, what you can do, who is in it, the stages, the words, the record.
@@ -555,7 +573,8 @@
           (explorer
             ? h("a", { class: "tag mono", href: `${explorer}/address/${deal.vaultAddress}`, target: "_blank", rel: "noreferrer" }, short(deal.vaultAddress))
             : h("span", { class: "tag mono", title: deal.vaultAddress }, short(deal.vaultAddress))),
-        tag(status.word, status.tone)
+        tag(status.word, status.tone),
+        h("button", { type: "button", class: "quiet", onclick: copyLink }, "Copy link")
       )
     );
 
@@ -620,18 +639,86 @@
       quiet
     );
 
-    return [
-      head,
-      steps,
-      actions,
-      ...(deal.status === "draft" ? checks(deal, organiser) : []),
-      ...(locked ? [money(deal)] : []),
-      ...peopleRows(deal, organiser, locked),
-      ...stageRows(deal, me, locked, go),
-      ...words(deal, organiser, locked, go),
-      ...settlement(),
-      ...activity(),
+    // Someone who still has to sign is shown what they are signing.
+    const tab = state.tab || (deal.status === "confirmed" && me && !me.agreed ? "agreement" : "workspace");
+    const refused = state.history.filter((entry) => entry.result === "refused").length;
+    const tabs = h(
+      "nav",
+      { class: "tabs" },
+      [
+        ["workspace", "Workspace"],
+        ["agreement", "Agreement"],
+        ["activity", refused ? `Activity · ${refused} refused` : "Activity"],
+      ].map(([name, text]) => {
+        const show = () => {
+          state.tab = name;
+          draw(true);
+        };
+        return h("button", { type: "button", class: name === tab ? "on" : "", onclick: show }, text);
+      })
+    );
+
+    const parts = {
+      workspace: () => [...(locked ? [money(deal)] : []), ...peopleRows(deal, organiser, locked), ...stageRows(deal, me, locked, go), ...settlement()],
+      agreement: () => [...agreement(deal), ...words(deal, organiser, locked, go)],
+      activity: () => activity(),
+    };
+    return [head, steps, actions, ...(deal.status === "draft" ? checks(deal, organiser) : []), tabs, ...parts[tab]()];
+  }
+
+  /**
+   * The whole deal in plain sentences, and what happens if someone breaks it.
+   * Both are built from the checklist by this code, not written by the model, so
+   * they say exactly what the vault will hold and what the contract enforces.
+   */
+  function agreement(deal) {
+    const { payers, stages, judge, stake } = deal.checklist;
+    const needed = Math.floor(payers.length / 2) + 1;
+    const terms = [
+      ...payers.map((payer) => `${payer.name} pays ${rupees(payer.share)} into the vault.`),
+      ...stages.map((stage) => `${stage.payee} is paid ${rupees(stage.amount)} when ${stage.condition || stage.title}.`),
+      payers.length > 1 ? `A stage is paid when ${needed} of the ${payers.length} payers approve it.` : payers.length === 1 && `A stage is paid when ${payers[0].name} approves it.`,
+      stake > 0 && `Each payee puts in a stake of ${rupees(stake)} before the deal starts, and gets it back when the deal closes.`,
+      judge.name && `${judge.name} settles any dispute.`,
+    ].filter(Boolean);
+
+    const rules = [
+      ["A payer does not pay in", "The deal does not start. Any payer can cancel, and every deposit is returned."],
+      ["A payer disputes a stage", `${judge.name || "The judge"} decides: pay the payee, or refund the payers. Nobody else can settle it.`],
+      stake > 0
+        ? ["A payee walks away", `Their unfinished stages are refunded to the payers, and their ${rupees(stake)} stake goes to the payers too.`]
+        : ["A payee walks away", "This deal has no stake, so they lose nothing. Their stage stays unpaid and its money stays locked."],
+      ["Someone acts out of turn, or asks for money twice", "The contract refuses. The attempt is kept under Activity."],
+      ["Someone changes the terms after signing", "Any edit clears every signature. Once the vault exists, the terms cannot change."],
+      ["The judge tries to take the money", "Not possible. The judge can only pay the payee or refund the payers."],
     ];
+
+    const signed = deal.people.filter((person) => person.agreed).map((person) => person.name);
+    const refused = state.history.filter((entry) => entry.result === "refused");
+    return [
+      label("The deal"),
+      h("ol", { class: "terms" }, terms.map((term) => h("li", {}, term))),
+      label("If someone breaks it"),
+      ...rules.map(([when, then]) => h("div", { class: "r rule" }, h("span", { class: "main" }, when), h("span", {}, then))),
+      label("Refused so far"),
+      ...(refused.length
+        ? refused.map((entry) => h("div", { class: "r rule" }, h("span", { class: "main" }, `${entry.person} · ${entry.action}${entry.stage ? ` ${entry.stage}` : ""}`), h("span", { class: "minus" }, entry.reason)))
+        : [h("p", { class: "empty" }, "Nothing")]),
+      label("Signed"),
+      h(
+        "p",
+        { class: "empty" },
+        signed.length ? signed.join(", ") : "Nobody yet",
+        deal.agreementHash && h("span", { class: "sub mono", title: deal.agreementHash }, `Fingerprint ${short(deal.agreementHash)}`)
+      ),
+    ];
+  }
+
+  function copyLink() {
+    const link = `${location.origin}/#${state.openId}`;
+    const done = () => say(`Link copied: ${link}`);
+    if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, () => say(link));
+    else say(link);
   }
 
   /** A button that asks once more before it acts, for steps that cannot be taken back. */
@@ -699,12 +786,17 @@
         } else side = tag("No account", "wait");
       } else if (deal.status === "confirmed" || deal.status === "agreed") {
         side = person.agreed ? tag("Signed", "good") : tag("To sign", "wait");
-      } else if (locked && deal.phase === "Funding") {
-        if (person.roles.includes("payer")) side = person.deposited ? tag("Paid in", "good") : tag("To pay", "wait");
-        else if (person.roles.includes("payee") && deal.stake > 0) side = person.staked ? tag("Staked", "good") : tag("To stake", "wait");
-      } else if (locked && person.left) {
-        side = tag("Left", "bad");
+      } else if (locked && (deal.phase === "Funding" || deal.phase === "Active")) {
+        // What each person has in the escrow while the deal is running, or still owes it before the start.
+        const owed = (amount, word) => (deal.phase === "Funding" ? tag(`To ${word} ${rupees(amount)}`, "wait") : null);
+        if (person.roles.includes("payer")) side = person.deposited ? tag(`${rupees(person.share)} in escrow`, "good") : owed(person.share, "pay");
+        else if (person.roles.includes("payee") && deal.stake > 0 && !person.left) {
+          side = person.staked ? tag(`${rupees(deal.stake)} stake in escrow`, "good") : owed(deal.stake, "stake");
+        }
       }
+      const more = [];
+      if (locked && person.left) more.push(tag("Left", "bad"));
+      if (locked && person.canWithdraw > 0) more.push(tag(`${rupees(person.canWithdraw)} to withdraw`, "wait"));
 
       const you = state.me && same(person.name, state.me.name);
       return h(
@@ -718,10 +810,10 @@
           person.known && h("span", { class: "sub mono" }, person.kind === "wallet" ? short(person.address) : "demo")
         ),
         h("div", { class: "muted" }, role.join(" · ")),
-        h("div", { class: "side" }, side)
+        h("div", { class: "side" }, side, more)
       );
     });
-    return [label("People"), ...rows];
+    return [label(locked ? "Escrow" : "People"), ...rows];
   }
 
   function stageRows(deal, me, locked, go) {
@@ -922,6 +1014,8 @@
   async function start() {
     state.chain = must(await api("GET", "/contract"));
     state.offline = Boolean(memory.read().offline);
+    // A link to a workspace opens that workspace.
+    state.openId = location.hash.slice(1) || null;
     const { people } = must(await api("GET", "/people"));
     state.demo = people.some((person) => person.kind === "demo");
 
