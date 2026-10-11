@@ -218,8 +218,27 @@ function setupPersonaAndMode() {
 function onPersonaOrModeChanged() {
   const avatarBadge = document.getElementById("rail-avatar-badge");
   const avatarInitial = document.getElementById("rail-avatar-initial");
+  const railName = document.getElementById("rail-user-name");
+  const railRole = document.getElementById("rail-user-role-badge");
+
   if (avatarInitial) {
     avatarInitial.textContent = (state.actingPerson || "R")[0].toUpperCase();
+  }
+  if (railName) {
+    railName.textContent = state.actingPerson || "Riya";
+  }
+  if (railRole) {
+    if (state.currentDeal) {
+      const isPayer = state.currentDeal.payers?.some(p => p.person === state.actingPerson);
+      const isPayee = state.currentDeal.stages?.some(s => s.payee === state.actingPerson);
+      const isJudge = state.currentDeal.judge === state.actingPerson;
+      if (isJudge) railRole.textContent = "Arbiter";
+      else if (isPayee) railRole.textContent = "Provider";
+      else if (isPayer) railRole.textContent = "Client";
+      else railRole.textContent = "Member";
+    } else {
+      railRole.textContent = "Client";
+    }
   }
   if (avatarBadge) {
     avatarBadge.title = `Acting as ${state.actingPerson} (Click to switch)`;
@@ -636,6 +655,167 @@ function renderMilestonesTimeline(deal) {
       item.classList.add("active-milestone-node");
     });
   });
+}
+
+function renderWorkspaceCollabData(deal) {
+  const roster = document.getElementById("workspace-members-roster");
+  if (!roster) return;
+
+  // Build members list with roles: Client, Provider, Arbiter, Member
+  const members = [];
+  const clientNames = deal.payers ? deal.payers.map(p => p.person) : ["Riya"];
+  clientNames.forEach(name => {
+    members.push({ name, role: "Client", roleClass: "role-client", dotClass: "client", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&h=60&fit=crop&crop=face" });
+  });
+
+  const payeeNames = [...new Set(deal.stages ? deal.stages.map(s => s.payee) : ["Aman"])];
+  payeeNames.forEach(name => {
+    if (!members.some(m => m.name === name)) {
+      members.push({ name, role: "Provider", roleClass: "role-provider", dotClass: "provider", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face" });
+    }
+  });
+
+  const judge = deal.judge || "Meera";
+  if (!members.some(m => m.name === judge)) {
+    members.push({ name: judge, role: "Arbiter", roleClass: "role-arbiter", dotClass: "arbiter", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=60&h=60&fit=crop&crop=face" });
+  }
+
+  // Extra members from state.people if needed
+  state.people.forEach(p => {
+    if (!members.some(m => m.name === p.name || m.name === p.id) && members.length < 5) {
+      members.push({ name: p.name || p.id, role: "Member", roleClass: "role-member", dotClass: "member", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60&h=60&fit=crop&crop=face" });
+    }
+  });
+
+  roster.innerHTML = members.slice(0, 4).map(m => `
+    <div class="workspace-member-card">
+      <div class="member-avatar-wrap">
+        <img src="${m.avatar}" alt="${escapeHtml(m.name)}" />
+        <span class="role-dot ${m.dotClass}"></span>
+      </div>
+      <div class="member-info">
+        <span class="member-name">${escapeHtml(m.name)}</span>
+        <span class="member-role-badge ${m.roleClass}">${escapeHtml(m.role)}</span>
+      </div>
+    </div>
+  `).join("");
+
+  // Setup Invite Member button
+  document.getElementById("btn-invite-member")?.addEventListener("click", () => {
+    const inviteName = prompt("Enter new workspace member name (e.g. Vikram or Tanya):");
+    if (!inviteName) return;
+    const inviteRole = prompt("Assign member role (Client, Provider, Arbiter, or Member):", "Member") || "Member";
+    members.push({
+      name: inviteName,
+      role: inviteRole,
+      roleClass: `role-${inviteRole.toLowerCase()}`,
+      dotClass: inviteRole.toLowerCase(),
+      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60&h=60&fit=crop&crop=face"
+    });
+    renderWorkspaceCollabData(deal);
+    showAiToast(`Invited ${inviteName} to workspace as ${inviteRole}.`);
+  });
+
+  // Setup comments input & posting
+  const commentInput = document.getElementById("workspace-comment-input");
+  const commentBtn = document.getElementById("btn-submit-comment");
+  const feedList = document.getElementById("workspace-activity-feed-list");
+
+  const postComment = () => {
+    const text = commentInput?.value.trim();
+    if (!text || !feedList) return;
+    commentInput.value = "";
+    const newItem = document.createElement("div");
+    newItem.className = "activity-feed-item";
+    newItem.innerHTML = `
+      <span class="activity-dot upload"></span>
+      <div class="activity-content">
+        <div class="activity-line"><strong>${escapeHtml(state.actingPerson)}:</strong> ${escapeHtml(text)}</div>
+        <span class="activity-time">Just now</span>
+      </div>
+    `;
+    feedList.prepend(newItem);
+    showAiToast(`Comment posted to workspace by ${state.actingPerson}.`);
+  };
+
+  commentBtn?.replaceWith(commentBtn.cloneNode(true));
+  document.getElementById("btn-submit-comment")?.addEventListener("click", postComment);
+  commentInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      postComment();
+    }
+  });
+}
+
+function renderAgreementDetailsPanel(deal) {
+  // Setup Internal Navigation Tabs (Terms, Breakdown, Evidence, Resolution)
+  document.querySelectorAll(".details-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".details-tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".details-pane").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      const tabId = btn.getAttribute("data-tab");
+      document.getElementById(`pane-details-${tabId}`)?.classList.add("active");
+    });
+  });
+
+  // 1. Terms Pane
+  const purposeEl = document.getElementById("terms-purpose-text");
+  const fingerprintEl = document.getElementById("details-fingerprint-val");
+  if (purposeEl) purposeEl.textContent = deal.title || "Collaborative staged escrow agreement";
+  if (fingerprintEl) fingerprintEl.textContent = `Digest: ${(deal.agreementFingerprint || "0x8f4b2ae910b847").slice(0, 20)}...`;
+
+  // 2. Breakdown Pane
+  const tbody = document.getElementById("breakdown-stages-tbody");
+  if (tbody && deal.stages) {
+    tbody.innerHTML = deal.stages.map(s => `
+      <tr>
+        <td>${s.num}. ${escapeHtml(s.title)}</td>
+        <td>${escapeHtml(s.payee)}</td>
+        <td>${formatRupees(s.amount)}</td>
+        <td><span class="badge ${getStateBadgeClass(s.state)}">${getStateLabel(s.state)}</span></td>
+      </tr>
+    `).join("");
+  }
+
+  const withdrawableEl = document.getElementById("details-withdrawable-amt");
+  if (withdrawableEl) {
+    withdrawableEl.textContent = formatRupees(deal.withdrawable?.[state.actingPerson] || 0);
+  }
+
+  // 3. Evidence Pane
+  document.querySelectorAll(".evidence-item-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const docId = card.getAttribute("data-doc-id");
+      openProofDocPreview(docId);
+    });
+  });
+
+  // 4. Dispute Resolution Pane
+  const disputeTitle = document.getElementById("dispute-banner-title");
+  const disputeSub = document.getElementById("dispute-banner-sub");
+  const arbiterControlsBox = document.getElementById("arbiter-ruling-controls-box");
+  const disputedStage = deal.stages ? deal.stages.find(s => s.state === "Disputed") : null;
+
+  if (disputedStage) {
+    if (disputeTitle) disputeTitle.textContent = `Active Dispute: Stage ${disputedStage.num}`;
+    if (disputeSub) disputeSub.textContent = `Raised for "${disputedStage.title}" (${formatRupees(disputedStage.amount)}). Awaiting ruling from neutral Arbiter ${deal.judge}.`;
+    
+    // Only display arbiter controls if logged in user is arbiter or tryAnything is on
+    const isJudge = deal.judge === state.actingPerson;
+    if (arbiterControlsBox) {
+      arbiterControlsBox.style.display = (isJudge || state.tryAnything) ? "block" : "none";
+      const payBtn = document.getElementById("btn-arbiter-rule-pay");
+      const refundBtn = document.getElementById("btn-arbiter-rule-refund");
+      if (payBtn) payBtn.setAttribute("data-stage", disputedStage.id);
+      if (refundBtn) refundBtn.setAttribute("data-stage", disputedStage.id);
+    }
+  } else {
+    if (disputeTitle) disputeTitle.textContent = "No Active Dispute";
+    if (disputeSub) disputeSub.textContent = "All milestones are proceeding in good standing.";
+    if (arbiterControlsBox) arbiterControlsBox.style.display = "none";
+  }
 }
 
 // Render Card A: Center Active Milestone Showcase
