@@ -48,6 +48,7 @@ Every deal gets its own copy of the same contract, so these are two of them. Wha
 - [Build status](#build-status)
 - [Limits](#limits)
 - [Roadmap](#roadmap)
+- [Team](#team)
 
 ## The problem
 
@@ -668,3 +669,12 @@ What to know about the free plan:
 | 4. Large enterprise | A main contractor with many subcontractors | Vaults that pay into other vaults, an inspector's sign-off as a condition, links to company accounts |
 
 Also planned: a deadline per stage, monthly payments backed by the stake in place of a full deposit up front, and real rupee payments through a licensed payment partner.
+
+## Team
+
+Made by team **JUNO** for VORTEXA 3.0.
+
+- Saee Kumbhar
+- Prathamesh Patil
+- Bhavjot Singh
+- Atharv Chaskar
