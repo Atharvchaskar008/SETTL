@@ -12,78 +12,370 @@
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body>
-  <!-- Top Bar -->
-  <header class="top-bar" id="app-top-bar">
-    <div class="top-bar-left">
-      <div class="brand-logo" id="brand-logo-btn" title="Settl Home">
-        <div class="logo-shield">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="m9 12 2 2 4-4"/>
+
+  <!-- Fullscreen Floating Tablet Container (Matching Image 2 Wireframe) -->
+  <div class="tablet-viewport-wrapper">
+    <div class="tablet-frame" id="app-tablet-frame">
+
+      <!-- Left Vertical Rail (Sparkle, Capsule with 5 Icons, Bridge Notch, Bottom Avatar) -->
+      <aside class="tablet-rail">
+        <div class="rail-top-sparkle" id="rail-sparkle-btn" title="Settl Home / Dashboard">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
         </div>
-        <span class="brand-title">Settl</span>
-      </div>
 
-      <nav class="nav-links" id="main-nav">
-        <button type="button" class="nav-link active" id="nav-deals" data-screen="deals">Deals</button>
-        <button type="button" class="nav-link" id="nav-new-deal" data-screen="new-deal">New deal</button>
-        <button type="button" class="nav-link" id="nav-attack-lab" data-screen="attack-lab">Attack lab</button>
-      </nav>
-    </div>
+        <div class="rail-nav-capsule">
+          <button type="button" class="rail-capsule-dot active" id="rail-btn-dashboard" title="Agreement & Milestones Dashboard" data-view="dashboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button type="button" class="rail-capsule-dot" id="rail-btn-deals" title="All Agreed Deals" data-view="deals">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </button>
+          <button type="button" class="rail-capsule-dot" id="rail-btn-ai-builder" title="AI Agreement Builder Wizard" data-view="new-deal">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 2 4 4-14 14H4v-4L18 2z"/><path d="m15 5 3 3"/></svg>
+          </button>
+          <button type="button" class="rail-capsule-dot" id="rail-btn-arbiter" title="Arbiter Panel" data-view="arbiter">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          </button>
+          <button type="button" class="rail-capsule-dot" id="rail-btn-attacks" title="Attack Lab" data-view="attack-lab">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </button>
+        </div>
 
-    <div class="top-bar-right">
-      <div class="simulated-badge" title="All transactions use simulated pretend funds for safety">
-        <span class="pulsing-dot"></span>
-        <span class="simulated-text">Simulated funds</span>
-      </div>
+        <!-- Distinctive circular notch node touching Card A on the left border -->
+        <div class="rail-bridge-notch" id="rail-bridge-notch" title="Active Agreement Connected">
+          <div class="bridge-inner-dot"></div>
+        </div>
 
-      <div class="try-anything-wrapper" title="Toggle Try Anything mode: When ON, show every button to all participants so illegal actions can be tested">
-        <label class="switch-label" for="toggle-try-anything">
-          <span class="switch-title">Try anything</span>
-          <div class="toggle-switch">
-            <input type="checkbox" id="toggle-try-anything" />
-            <span class="slider"></span>
+        <div class="rail-bottom-area">
+          <button type="button" class="rail-icon-sm" id="btn-reset-demo" title="Reset Demo Data">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+          <div class="rail-avatar-circle" id="rail-avatar-badge" title="Acting as Persona: Click to change">
+            <span id="rail-avatar-initial">R</span>
           </div>
-        </label>
-      </div>
-
-      <div class="acting-as-selector">
-        <label for="select-acting-as" class="acting-as-label">Acting as:</label>
-        <div class="custom-select-wrap">
-          <select id="select-acting-as" aria-label="Acting as persona selector">
-            <!-- Dynamically populated from /people -->
-          </select>
-          <span class="select-chevron">▾</span>
         </div>
-      </div>
+      </aside>
+
+      <!-- Main Tablet Canvas (Top Capsule + Bento Grid of Cards A, B, C, D) -->
+      <main class="tablet-canvas">
+
+        <!-- Top Right Capsule Pill Bar (Simulated Funds, Try Anything, Persona) -->
+        <header class="tablet-top-capsule-bar">
+          <div class="capsule-left-deal-title" id="deal-title-pill" title="Click to switch agreement">
+            <span class="deal-pill-icon">✦</span>
+            <span class="deal-pill-text" id="capsule-deal-title">Website for Riya's shop</span>
+            <span class="deal-pill-chevron">▾</span>
+          </div>
+
+          <div class="capsule-right-controls">
+            <!-- Simulated Funds Badge -->
+            <div class="simulated-pill-badge" title="Simulated funds enabled for testing safety">
+              <span class="pulsing-dot-green"></span>
+              <span class="simulated-pill-text">Simulated funds</span>
+            </div>
+
+            <!-- Try Anything Toggle -->
+            <div class="try-anything-pill-wrapper" title="Try Anything: Test illegal transitions as any participant">
+              <label class="switch-inline" for="toggle-try-anything">
+                <span class="switch-text">Try anything</span>
+                <input type="checkbox" id="toggle-try-anything" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <!-- Acting As Selector -->
+            <div class="acting-as-pill">
+              <span class="acting-label">Acting:</span>
+              <select id="select-acting-as" aria-label="Acting as persona selector">
+                <!-- Dynamically populated from /people -->
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <!-- Bento Grid Layout: 2 Columns x 2 Rows (Exact Geometry of Image 2) -->
+        <div class="tablet-bento-grid">
+
+          <!-- ===============================================================
+               CARD A: Hero Agreement & Milestones (Top-Left / Center)
+               =============================================================== -->
+          <section class="bento-card bento-card-a" id="card-hero-agreement">
+            <div class="card-a-header flex-between">
+              <div>
+                <div class="title-row-with-badge">
+                  <h2 class="card-title-lg" id="dash-deal-title">Website for Riya's shop</h2>
+                  <span class="badge badge-released" id="dash-phase-badge">Active</span>
+                </div>
+                <div class="card-a-participants-chips" id="dash-participants-meta">
+                  <span class="participant-chip chip-client">Client: <strong>Riya</strong></span>
+                  <span class="participant-chip chip-provider">Provider: <strong>Aman</strong></span>
+                  <span class="participant-chip chip-arbiter">Arbiter: <strong>Meera</strong></span>
+                </div>
+              </div>
+              <div class="card-a-header-actions">
+                <button type="button" class="btn-text-sm" id="btn-open-technical-details">Technical details &gt;</button>
+                <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-view-summary">View Summary</button>
+              </div>
+            </div>
+
+            <!-- Center Showcase: Active Milestone with Emblem matching Image 2 -->
+            <div class="hero-center-showcase">
+              <div class="center-emblem-badge" title="Active Milestone in Progress">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+
+              <div class="active-stage-details-box" id="active-stage-card-box">
+                <div class="stage-headline-row flex-between">
+                  <div>
+                    <span class="stage-step-tag">CURRENT MILESTONE</span>
+                    <h3 class="stage-headline-title" id="active-milestone-title">Stage 2: Frontend Development & Integration</h3>
+                  </div>
+                  <div class="stage-headline-amount" id="active-milestone-amount">₹15,000</div>
+                </div>
+
+                <div class="stage-condition-quote">
+                  <span class="condition-label">Completion condition:</span>
+                  <p id="active-milestone-condition">"Deploy responsive liquid glass frontend with verified build"</p>
+                </div>
+
+                <!-- Status Progression Stepper -->
+                <div class="milestone-status-progression">
+                  <div class="status-step-pill passed">
+                    <span class="step-dot"></span>
+                    <span>Pending</span>
+                  </div>
+                  <div class="step-connector active"></div>
+                  <div class="status-step-pill current">
+                    <span class="step-dot"></span>
+                    <span>Submitted</span>
+                  </div>
+                  <div class="step-connector"></div>
+                  <div class="status-step-pill">
+                    <span class="step-dot"></span>
+                    <span>Approved / Disputed</span>
+                  </div>
+                  <div class="step-connector"></div>
+                  <div class="status-step-pill">
+                    <span class="step-dot"></span>
+                    <span>Resolved</span>
+                  </div>
+                </div>
+
+                <!-- Milestone Action Buttons -->
+                <div class="stage-buttons-toolbar flex-between mt-2">
+                  <div class="stage-waiting-info" id="active-milestone-waiting-text">
+                    Waiting for Client approval
+                  </div>
+                  <div class="stage-buttons-group" id="active-stage-buttons-area">
+                    <button type="button" class="btn btn-secondary btn-sm btn-stage-action" data-action="done" data-stage="stg-2">Submit Proof</button>
+                    <button type="button" class="btn btn-primary btn-sm btn-stage-action" data-action="approve" data-stage="stg-2">Approve</button>
+                    <button type="button" class="btn btn-danger btn-sm btn-stage-action" data-action="dispute" data-stage="stg-2">Dispute</button>
+                  </div>
+                </div>
+                <div class="refusal-slot mt-2" id="refusal-stage-active"></div>
+              </div>
+            </div>
+
+            <!-- All Stages Accordion / Timeline Dropdown -->
+            <div class="stages-collapsed-timeline" id="dash-stages-container">
+              <!-- Dynamically populated stages -->
+            </div>
+
+            <!-- Card A Bottom Pill Input Bar: (+) [ AI Agreement Builder / Deliverable Prompt ] -->
+            <div class="hero-bottom-pill-bar">
+              <button type="button" class="btn-pill-add" id="btn-hero-attach" title="Attach delivery evidence or paste agreement">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="12" y2="12"></line></svg>
+              </button>
+              <input type="text" class="hero-input-field" id="hero-ai-input" placeholder="Paste agreement text to extract milestones, or type instructions for AI assistant..." />
+              <button type="button" class="btn btn-primary btn-sm" id="btn-hero-ai-submit">Submit</button>
+            </div>
+            <div id="hero-ai-toast-slot"></div>
+          </section>
+
+          <!-- ===============================================================
+               CARD B: Pending Approvals & Disputes (Top-Right Stack)
+               =============================================================== -->
+          <section class="bento-card bento-card-b" id="card-stack-actions">
+            <div class="card-header-row flex-between">
+              <div class="title-pill-tag">Pending Approvals & Disputes</div>
+              <span class="badge badge-completed" id="action-centre-count">3 items</span>
+            </div>
+
+            <!-- 3 Stacked Cards (Matching Image 2 Wireframe with Left Rounded Tabs) -->
+            <div class="stacked-cards-container" id="action-centre-stack-list">
+              <!-- Stack 1 (Top / Front) -->
+              <div class="stacked-card card-depth-1 active-stack">
+                <div class="stack-left-tab tab-amber">
+                  <span>1</span>
+                </div>
+                <div class="stack-card-body">
+                  <div class="flex-between">
+                    <h4>Needs Client Approval</h4>
+                    <span class="badge badge-disputed">₹15,000</span>
+                  </div>
+                  <p>Stage 2: Frontend Dev completed by Aman. Payer approval requested.</p>
+                </div>
+              </div>
+
+              <!-- Stack 2 (Middle) -->
+              <div class="stacked-card card-depth-2">
+                <div class="stack-left-tab tab-blue">
+                  <span>2</span>
+                </div>
+                <div class="stack-card-body">
+                  <div class="flex-between">
+                    <h4>Milestone In Progress</h4>
+                    <span class="badge badge-pending">₹5,000</span>
+                  </div>
+                  <p>Stage 3: Testing & Delivery assigned to Aman. Awaiting completion.</p>
+                </div>
+              </div>
+
+              <!-- Stack 3 (Back) -->
+              <div class="stacked-card card-depth-3">
+                <div class="stack-left-tab tab-purple">
+                  <span>3</span>
+                </div>
+                <div class="stack-card-body">
+                  <div class="flex-between">
+                    <h4>Dispute Review</h4>
+                    <span class="badge badge-refunded">Arbiter</span>
+                  </div>
+                  <p>Arbiter Meera reviewing submitted delivery evidence for ruling.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===============================================================
+               CARD C: Overview & Arbiter Panel (Bottom-Center Hub)
+               =============================================================== -->
+          <section class="bento-card bento-card-c" id="card-hub-overview">
+            <div class="card-header-row flex-between">
+              <div class="title-pill-tag">Overview & Arbiter Panel</div>
+              <div class="reconcile-chip">
+                <span>Adds up:</span>
+                <span class="badge badge-success" id="dash-reconcile-badge">yes</span>
+              </div>
+            </div>
+
+            <!-- Overview Balances Metric Row -->
+            <div class="overview-metrics-strip flex-between">
+              <div class="metric-item">
+                <span class="metric-lbl">Total Escrow</span>
+                <strong class="metric-val" id="dash-money-total">₹30,000</strong>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric-item">
+                <span class="metric-lbl">Remaining</span>
+                <strong class="metric-val text-ocean" id="metric-val-locked">₹20,000</strong>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric-item">
+                <span class="metric-lbl">Released</span>
+                <strong class="metric-val text-emerald" id="metric-val-paidout">₹10,000</strong>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric-item">
+                <span class="metric-lbl">Withdrawable</span>
+                <strong class="metric-val text-emerald" id="your-money-amount">₹0</strong>
+              </div>
+            </div>
+
+            <!-- 3x3 Action Buttons Grid (Provider, Client, Arbiter) -->
+            <div class="matrix-grid-3x3" id="action-matrix-container">
+              <!-- Column 1: Provider Actions -->
+              <button type="button" class="matrix-btn btn-stage-action" data-action="done" data-stage="stg-2" title="Provider submits deliverable proof">Submit Proof</button>
+              <button type="button" class="matrix-btn btn-stage-action" data-action="done" data-stage="stg-2" title="Provider marks milestone finished">Mark Done</button>
+              <button type="button" class="matrix-btn" id="btn-matrix-withdraw" title="Withdraw credited balance">Withdraw ₹</button>
+
+              <!-- Column 2: Client Actions -->
+              <button type="button" class="matrix-btn btn-primary-action btn-stage-action" data-action="approve" data-stage="stg-2" title="Client approves deliverable">Approve</button>
+              <button type="button" class="matrix-btn btn-danger-action btn-stage-action" data-action="dispute" data-stage="stg-2" title="Client disputes deliverable">Dispute</button>
+              <button type="button" class="matrix-btn" id="btn-matrix-deposit" title="Client deposits simulated UPI share">Deposit UPI</button>
+
+              <!-- Column 3: Arbiter Actions -->
+              <button type="button" class="matrix-btn btn-stage-action" data-action="pay_payee" data-stage="stg-2" title="Arbiter releases payment to payee">Pay Payee</button>
+              <button type="button" class="matrix-btn btn-stage-action" data-action="refund_payers" data-stage="stg-2" title="Arbiter refunds escrow to client">Refund Client</button>
+              <button type="button" class="matrix-btn" id="btn-matrix-ruling" title="Arbiter records dispute ruling">Record Ruling</button>
+            </div>
+            <div class="refusal-slot mt-2" id="matrix-refusal-slot"></div>
+
+            <!-- Segmented Money Progress Bar (Bottom of Card C, matching Image 2) -->
+            <div class="segmented-progress-line-wrapper mt-3">
+              <div class="segmented-progress-bar" id="dash-money-bar">
+                <div class="segment-fill seg-locked" id="bar-seg-locked" style="width: 66.6%;">Locked: ₹20,000</div>
+                <div class="segment-fill seg-waiting" id="bar-seg-waiting" style="width: 0%;">Waiting: ₹0</div>
+                <div class="segment-fill seg-paid" id="bar-seg-paidout" style="width: 33.3%;">Paid: ₹10,000</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===============================================================
+               CARD D: Evidence & Proof Vault (Bottom-Right Deck)
+               =============================================================== -->
+          <section class="bento-card bento-card-d" id="card-deck-vault">
+            <div class="card-header-row flex-between">
+              <div class="title-pill-tag">Proof Vault & Evidence</div>
+              <div class="circle-count-badge" id="proof-docs-count">3</div>
+            </div>
+
+            <!-- Fanned Overlapping Document Cards (Matching Image 2 Wireframe Angle) -->
+            <div class="fanned-cards-deck" id="fanned-documents-deck">
+              <div class="fanned-card fan-card-1" data-doc="1" title="Click to view Figma Specification">
+                <div class="fanned-card-pill">Figma Spec</div>
+                <div class="fanned-card-title">design_tokens.fig</div>
+                <div class="fanned-card-meta">Milestone 1</div>
+              </div>
+
+              <div class="fanned-card fan-card-2" data-doc="2" title="Click to view GitHub Pull Request">
+                <div class="fanned-card-pill">GitHub PR</div>
+                <div class="fanned-card-title">PR #104 Merged</div>
+                <div class="fanned-card-meta">Milestone 2</div>
+              </div>
+
+              <div class="fanned-card fan-card-3" data-doc="3" title="Click to view Simulated UPI Receipt">
+                <div class="fanned-card-pill">UPI Receipt</div>
+                <div class="fanned-card-title">simulated_upi.pdf</div>
+                <div class="fanned-card-meta">Escrow Deposit</div>
+              </div>
+            </div>
+
+            <!-- Card D Footer -->
+            <div class="card-d-footer flex-between">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-upload-proof">
+                + Upload Evidence
+              </button>
+              <span class="vault-hash-code" id="proof-vault-hash">Hash: 0x8f4b2a...</span>
+            </div>
+          </section>
+
+        </div>
+      </main>
+
     </div>
-  </header>
+  </div>
 
-  <!-- Main Content Container -->
-  <main class="main-container" id="main-app">
-
-    <!-- SCREEN 1: DEALS LIST -->
-    <section class="screen-view active" id="screen-deals" aria-label="Deals Screen">
-      <div class="screen-header flex-between">
-        <div>
-          <h1 class="screen-heading">Agreed Deals & Escrows</h1>
-          <p class="screen-subheading">Track locked agreements, pending approvals, and payment phases.</p>
+  <!-- =======================================================================
+       MODAL 1: DEALS SWITCHER MODAL (From Rail / Pill Click)
+       ======================================================================= -->
+  <div class="modal-backdrop hidden" id="deals-modal-backdrop">
+    <div class="modal-card max-w-750">
+      <div class="modal-header flex-between">
+        <div class="modal-title-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h3>Agreed Deals & Escrows</h3>
         </div>
-        <div class="header-actions">
-          <button type="button" class="btn btn-secondary" id="btn-reset-demo" title="Reset sample deals back to default demo state">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset demo data
-          </button>
-          <button type="button" class="btn btn-primary" id="btn-deals-new-deal">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            New deal
-          </button>
-        </div>
+        <button type="button" class="btn-close" id="btn-close-deals-modal">×</button>
       </div>
-
-      <!-- Deals Table Card -->
-      <div class="card glass-card table-card">
+      <div class="modal-body">
         <div class="table-responsive">
           <table class="deals-table" id="deals-table">
             <thead>
@@ -101,48 +393,55 @@
             </tbody>
           </table>
         </div>
-        <div class="empty-state hidden" id="deals-empty-state">
-          <p>No deals found. Create a new deal to get started!</p>
-        </div>
       </div>
-    </section>
+      <div class="modal-footer flex-between">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-modal-new-deal">+ Create New Deal</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-done-deals-modal">Close</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- SCREEN 2: NEW DEAL WIZARD -->
-    <section class="screen-view" id="screen-new-deal" aria-label="New Deal Wizard">
-      <!-- 4-Step Wizard Header -->
+  <!-- =======================================================================
+       MODAL 2: AI AGREEMENT BUILDER WIZARD (4 Steps)
+       ======================================================================= -->
+  <div class="modal-backdrop hidden" id="wizard-modal-backdrop">
+    <div class="modal-card max-w-750">
+      <div class="modal-header flex-between">
+        <div class="modal-title-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <h3>AI Agreement Builder</h3>
+        </div>
+        <button type="button" class="btn-close" id="btn-close-wizard-modal">×</button>
+      </div>
+
+      <!-- 4-Step Stepper -->
       <div class="wizard-stepper">
         <div class="step-item active" data-step="1" id="step-nav-1">
           <span class="step-circle">1</span>
-          <span class="step-label">1. Describe</span>
+          <span class="step-label">Describe</span>
         </div>
         <div class="step-divider"></div>
         <div class="step-item" data-step="2" id="step-nav-2">
           <span class="step-circle">2</span>
-          <span class="step-label">2. Review</span>
+          <span class="step-label">Review</span>
         </div>
         <div class="step-divider"></div>
         <div class="step-item" data-step="3" id="step-nav-3">
           <span class="step-circle">3</span>
-          <span class="step-label">3. Agree</span>
+          <span class="step-label">Agree</span>
         </div>
         <div class="step-divider"></div>
         <div class="step-item" data-step="4" id="step-nav-4">
           <span class="step-circle">4</span>
-          <span class="step-label">4. Lock</span>
+          <span class="step-label">Lock</span>
         </div>
       </div>
 
-      <!-- Step 1: Describe -->
-      <div class="wizard-panel active" id="wizard-step-describe">
-        <div class="card glass-card">
-          <div class="panel-header">
-            <h2>Describe the deal in plain words</h2>
-            <p class="panel-sub">Write what should happen, who pays, who gets paid, and who settles disputes. Our checker reads the text and proposes a structured checklist.</p>
-          </div>
-
-          <!-- Sample Buttons -->
-          <div class="sample-buttons-row">
-            <span class="samples-label">Load a sample:</span>
+      <div class="modal-body">
+        <!-- Step 1: Describe -->
+        <div class="wizard-panel active" id="wizard-step-describe">
+          <div class="sample-buttons-row mb-3">
+            <span class="samples-label">Load sample:</span>
             <div class="sample-pills">
               <button type="button" class="sample-btn" data-sample="flatmates">Flatmates</button>
               <button type="button" class="sample-btn" data-sample="freelance">Freelance</button>
@@ -150,157 +449,54 @@
               <button type="button" class="sample-btn" data-sample="bonus">Company bonus</button>
             </div>
           </div>
-
-          <div class="form-group">
-            <label for="describe-textarea" class="input-label">Deal text</label>
-            <textarea id="describe-textarea" rows="6" placeholder="Example: Riya will pay Aman Rs 30,000 for a website: Rs 10,000 after design, Rs 15,000 after development and Rs 5,000 when the work is good. Meera settles disputes."></textarea>
+          <div class="form-group mb-3">
+            <label for="describe-textarea" class="input-label">Plain Language Agreement Text</label>
+            <textarea id="describe-textarea" rows="5" placeholder="Example: Riya will pay Aman Rs 30,000 for a website: Rs 10,000 after design, Rs 15,000 after development and Rs 5,000 when good. Meera settles disputes."></textarea>
           </div>
-
-          <div class="panel-actions flex-between">
-            <span class="tip-text">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Amounts will be simulated in Indian Rupees with strict vault escrow.
-            </span>
-            <div class="action-btn-group">
-              <button type="button" class="btn btn-primary" id="btn-check-deal">
-                Check this deal
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-              </button>
-            </div>
+          <div class="flex-between">
+            <span class="text-sm text-muted">AI parses milestones, payers, and ambiguous conditions.</span>
+            <button type="button" class="btn btn-primary" id="btn-check-deal">Check this deal →</button>
           </div>
-          <div class="refusal-slot" id="describe-refusal"></div>
+          <div class="refusal-slot mt-2" id="describe-refusal"></div>
         </div>
-      </div>
 
-      <!-- Step 2: Review -->
-      <div class="wizard-panel" id="wizard-step-review">
-        <div class="review-split-layout" id="review-split-container">
-
-          <!-- Left Column: Original Text -->
-          <div class="review-text-column card glass-card" id="review-text-card">
-            <div class="panel-header flex-between">
-              <div>
-                <h3>YOUR TEXT</h3>
-                <span class="card-caption">Original agreement text (read-only)</span>
-              </div>
-              <button type="button" class="btn-text-sm collapsible-toggle" id="btn-toggle-original-text">Collapse</button>
-            </div>
-            <div class="original-text-content" id="original-text-display">
-              <!-- Rendered with interactive highlight spans -->
-            </div>
-            <div class="highlight-legend">
-              <span class="legend-item"><span class="legend-swatch swatch-amber"></span> Unclear phrase (must be fixed)</span>
-              <span class="legend-item"><span class="legend-swatch swatch-cyan"></span> Linked stage (hover checklist to preview)</span>
-            </div>
-          </div>
-
-          <!-- Right Column: Proposed Checklist -->
-          <div class="review-checklist-column card glass-card">
-            <div class="panel-header flex-between">
-              <div>
-                <h3>PROPOSED CHECKLIST</h3>
-                <span class="card-caption">All fields can be edited or calibrated</span>
-              </div>
-              <div class="read-by-tag" id="review-read-by-tag">
-                <span class="read-by-label">Read by:</span>
-                <span class="read-by-value" id="review-read-by-value">model</span>
-                <span class="read-by-reason" id="review-read-by-reason">Parsed deal structure</span>
-              </div>
-            </div>
-
-            <!-- Payers List -->
-            <div class="checklist-section">
-              <div class="section-title-row flex-between">
+        <!-- Step 2: Review Proposed Checklist -->
+        <div class="wizard-panel" id="wizard-step-review">
+          <div class="review-split-layout">
+            <div class="original-text-content mb-3" id="original-text-display"></div>
+            <div class="checklist-box">
+              <div class="checklist-section">
                 <h4>Payers</h4>
-                <button type="button" class="btn-text-sm" id="btn-add-payer">+ Add payer</button>
+                <div id="review-payers-list"></div>
               </div>
-              <div class="checklist-items-list" id="review-payers-list">
-                <!-- Dynamically populated -->
-              </div>
-            </div>
-
-            <!-- Judge -->
-            <div class="checklist-section">
-              <div class="section-title-row flex-between">
+              <div class="checklist-section">
                 <h4>Judge</h4>
-                <button type="button" class="btn-text-sm" id="btn-edit-judge">Edit</button>
+                <div id="review-judge-display"></div>
               </div>
-              <div class="judge-display-row" id="review-judge-display">
-                <!-- Dynamically populated -->
-              </div>
-            </div>
-
-            <!-- Stages -->
-            <div class="checklist-section">
-              <div class="section-title-row flex-between">
+              <div class="checklist-section">
                 <h4>Stages</h4>
-                <button type="button" class="btn-text-sm" id="btn-add-stage">+ Add stage</button>
+                <div id="review-stages-list"></div>
               </div>
-              <div class="checklist-items-list" id="review-stages-list">
-                <!-- Dynamically populated -->
+              <div class="checklist-section" id="review-unclear-section">
+                <h4 class="text-amber">Unclear Phrases (<span id="unclear-count">0</span>)</h4>
+                <div id="review-unclear-list"></div>
               </div>
-            </div>
-
-            <!-- Unclear Items -->
-            <div class="checklist-section" id="review-unclear-section">
-              <div class="section-title-row">
-                <h4 class="text-amber">
-                  UNCLEAR (<span id="unclear-count">0</span>)
-                  <span class="unclear-warning-tag">must be fixed</span>
-                </h4>
+              <div class="checklist-summary-box flex-between mt-3">
+                <div>Total: <strong id="review-total-amount">₹0</strong></div>
+                <div>Shares Match: <span class="badge badge-success" id="review-shares-badge">yes</span></div>
               </div>
-              <div class="unclear-items-list" id="review-unclear-list">
-                <!-- Dynamically populated -->
+              <div class="mt-3">
+                <button type="button" class="btn btn-primary btn-block" id="btn-confirm-checklist" disabled>Confirm Checklist</button>
+                <div class="button-explanation text-sm mt-1" id="confirm-disabled-reason"></div>
               </div>
-            </div>
-
-            <!-- Problems List -->
-            <div class="checklist-section hidden" id="review-problems-section">
-              <div class="problems-card" id="review-problems-list">
-                <!-- Validation errors -->
-              </div>
-            </div>
-
-            <!-- Total and Reconciliation Status -->
-            <div class="checklist-summary-box flex-between">
-              <div class="total-display">
-                <span class="summary-label">Total:</span>
-                <strong class="summary-amount" id="review-total-amount">₹0</strong>
-              </div>
-              <div class="shares-add-up-status" id="review-shares-status">
-                <span class="summary-label">Shares add up:</span>
-                <span class="badge badge-success" id="review-shares-badge">yes</span>
-              </div>
-            </div>
-
-            <!-- Confirm Action -->
-            <div class="panel-actions mt-4">
-              <button type="button" class="btn btn-primary btn-block" id="btn-confirm-checklist" disabled>
-                Confirm checklist
-              </button>
-              <div class="button-explanation" id="confirm-disabled-reason">
-                Cannot confirm until unclear lines are fixed and amounts reconcile.
-              </div>
-              <div class="refusal-slot" id="confirm-refusal"></div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Step 3: Agree -->
-      <div class="wizard-panel" id="wizard-step-agree">
-        <div class="card glass-card max-w-750 mx-auto">
-          <div class="panel-header">
-            <h2>Signatures & Agreement</h2>
-            <p class="panel-sub">Every participant must explicitly agree to the final checklist. Once locked, the terms are sealed into the escrow contract.</p>
-          </div>
-
-          <div class="alert-info-box">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span><strong>Note:</strong> Editing the checklist clears every agreement, requiring all parties to agree again.</span>
-          </div>
-
-          <div class="participants-agree-table-wrap mt-3">
+        <!-- Step 3: Agree -->
+        <div class="wizard-panel" id="wizard-step-agree">
+          <p class="text-muted text-sm mb-3">Every participant must sign agreement before funds are locked into vault.</p>
+          <div class="table-responsive">
             <table class="simple-table" id="agree-participants-table">
               <thead>
                 <tr>
@@ -310,346 +506,97 @@
                   <th>Action</th>
                 </tr>
               </thead>
-              <tbody id="agree-participants-tbody">
-                <!-- Dynamically populated -->
-              </tbody>
+              <tbody id="agree-participants-tbody"></tbody>
             </table>
           </div>
-
-          <div class="refusal-slot mt-3" id="agree-refusal"></div>
-
-          <div class="flex-between mt-4">
-            <button type="button" class="btn btn-secondary" id="btn-back-to-review">
-              ← Edit checklist
-            </button>
+          <div class="refusal-slot mt-2" id="agree-refusal"></div>
+          <div class="flex-between mt-3">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-back-to-review">← Edit Terms</button>
             <div id="agree-ready-indicator" class="hidden">
               <span class="badge badge-success">All participants agreed!</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Step 4: Lock & Deposit -->
-      <div class="wizard-panel" id="wizard-step-lock">
-        <div class="card glass-card max-w-750 mx-auto">
-          <div class="panel-header">
-            <h2>Lock Deal & Deposit Simulated UPI</h2>
-            <p class="panel-sub">All parties agreed. The organiser locks the deal to establish the escrow contract. Payers then deposit their simulated shares.</p>
-          </div>
-
-          <!-- Lock Phase Banner -->
-          <div class="lock-status-card" id="lock-state-box">
-            <div class="lock-icon-wrap" id="lock-icon-container">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <div>
-              <h3 id="lock-card-title">Agreement Ready to Lock</h3>
-              <p id="lock-card-desc">Locking computes the agreement fingerprint and deploys the vault escrow.</p>
-            </div>
-            <div class="lock-action-btn-area">
-              <button type="button" class="btn btn-primary" id="btn-lock-deal">
-                Lock the deal
-              </button>
-            </div>
+        <!-- Step 4: Lock & Deposit -->
+        <div class="wizard-panel" id="wizard-step-lock">
+          <div class="lock-status-card mb-3" id="lock-state-box">
+            <h4 id="lock-card-title">Agreement Ready to Lock</h4>
+            <p id="lock-card-desc" class="text-muted text-sm">Locking deploys the Hardhat EVM vault contract.</p>
+            <button type="button" class="btn btn-primary mt-2" id="btn-lock-deal">Lock the deal</button>
           </div>
           <div class="refusal-slot" id="lock-refusal"></div>
-
-          <!-- Payer Deposits List -->
-          <div class="deposits-section mt-4 hidden" id="lock-deposits-section">
-            <h4 class="mb-2">Simulated UPI Deposits</h4>
-            <p class="text-muted text-sm mb-3">Each payer deposits their pretend funds share to activate the deal.</p>
-            <div class="deposits-list" id="lock-deposits-list">
-              <!-- Dynamically populated -->
-            </div>
-            <div class="refusal-slot" id="deposit-refusal"></div>
+          <div class="deposits-section hidden mt-3" id="lock-deposits-section">
+            <h4>Simulated UPI Deposits</h4>
+            <div class="deposits-list mt-2" id="lock-deposits-list"></div>
+            <div class="refusal-slot mt-2" id="deposit-refusal"></div>
           </div>
-
-          <div class="mt-4 text-center hidden" id="all-deposited-banner">
-            <div class="success-banner">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>All funds deposited! Deal is now <strong>Active</strong>.</span>
-            </div>
-            <button type="button" class="btn btn-primary mt-3" id="btn-goto-dashboard">
-              Go to Deal Dashboard →
-            </button>
+          <div class="mt-3 text-center hidden" id="all-deposited-banner">
+            <span class="badge badge-success">All funds deposited! Deal is Active.</span>
+            <button type="button" class="btn btn-primary btn-block mt-2" id="btn-goto-dashboard">Go to Dashboard →</button>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
 
-    <!-- SCREEN 3: DEAL DASHBOARD (BENTO GRID LAYOUT) -->
-    <section class="screen-view" id="screen-deal-dashboard" aria-label="Deal Dashboard">
-      <div class="bento-dashboard-wrapper">
-        <!-- Left Vertical Nav Rail (Matching Image 1) -->
-        <aside class="bento-nav-rail">
-          <div class="rail-top-logo" id="rail-home-btn" title="Settl Home">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </div>
-          <div class="rail-center-icons">
-            <button type="button" class="rail-icon-btn active" title="Workspaces / Dashboard" data-screen="deals">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <button type="button" class="rail-icon-btn" title="New Agreement" data-screen="new-deal">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            </button>
-            <button type="button" class="rail-icon-btn" title="Attack Lab" data-screen="attack-lab">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </button>
-          </div>
-          <div class="rail-bottom-profile">
-            <div class="rail-avatar-circle" id="rail-avatar-badge" title="Active Persona">R</div>
-          </div>
-        </aside>
-
-        <!-- Bento Canvas Grid (Cards A, B, C, D) -->
-        <div class="bento-canvas-grid">
-          <!-- Card A: Main Hero Canvas (Top-Left) -->
-          <div class="card glass-card bento-card-hero">
-            <div class="hero-deal-header flex-between">
-              <div>
-                <div class="title-with-badge">
-                  <h1 class="hero-deal-title" id="dash-deal-title">Website for Riya's shop</h1>
-                  <span class="badge" id="dash-phase-badge">Active</span>
-                </div>
-                <div class="hero-participants-tags" id="dash-participants-meta">
-                  <!-- Payer: Riya | Payee: Aman | Judge: Meera -->
-                </div>
-              </div>
-              <div class="dash-header-controls">
-                <button type="button" class="btn-text-sm technical-details-link" id="btn-open-technical-details">
-                  Technical details &gt;
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-view-summary">
-                  View Deal Summary &gt;
-                </button>
-              </div>
-            </div>
-
-            <!-- Stages Journey Timeline -->
-            <div class="hero-stages-timeline" id="dash-stages-container">
-              <!-- Dynamically populated stages -->
-            </div>
-
-            <!-- Card A Bottom Pill Input Bar: (+) [ AI Assistant / Submit Proof ] -->
-            <div class="hero-bottom-input-bar">
-              <button type="button" class="btn-pill-add" id="btn-hero-attach" title="Attach delivery proof or document">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-              <input type="text" class="hero-input-field" id="hero-ai-input" placeholder="Type instructions for AI agreement assistant or attach proof..." />
-              <button type="button" class="btn btn-primary btn-sm" id="btn-hero-ai-submit">Submit</button>
-            </div>
-            <div id="hero-ai-toast-slot"></div>
-          </div>
-
-          <!-- Card B: Action Centre (Top-Right Stack) -->
-          <div class="card glass-card bento-card-action-centre">
-            <div class="action-centre-header">
-              <h3>Action Centre</h3>
-              <span class="badge badge-completed" id="action-centre-count">1 action</span>
-            </div>
-            <div class="action-centre-stack" id="action-centre-stack-list">
-              <!-- Dynamically populated action items -->
-            </div>
-          </div>
-
-          <!-- Card C: Vault Metrics & 3x3 Action Hub (Bottom-Center) -->
-          <div class="card glass-card bento-card-vault-matrix">
-            <div class="vault-header-row">
-              <div>
-                <h3>Vault Escrow & Actions</h3>
-                <span class="text-sm text-muted">Simulated Funds: <strong id="dash-money-total">₹30,000</strong></span>
-              </div>
-              <div class="reconciliation-badge-group">
-                <span class="reconcile-label">Adds up:</span>
-                <span class="badge badge-success" id="dash-reconcile-badge">yes</span>
-              </div>
-            </div>
-
-            <!-- 3-Part Progress Bar -->
-            <div class="money-progress-bar-wrap">
-              <div class="money-progress-bar" id="dash-money-bar">
-                <div class="money-bar-segment segment-locked" id="bar-seg-locked" style="width: 66.6%;">Locked</div>
-                <div class="money-bar-segment segment-waiting" id="bar-seg-waiting" style="width: 0%;">Waiting</div>
-                <div class="money-bar-segment segment-paidout" id="bar-seg-paidout" style="width: 33.3%;">Paid out</div>
-              </div>
-            </div>
-
-            <div class="money-metrics-row">
-              <div class="money-metric">
-                <span class="metric-dot dot-locked"></span>
-                <span class="metric-name">Locked:</span>
-                <strong class="metric-val" id="metric-val-locked">₹20,000</strong>
-              </div>
-              <div class="money-metric">
-                <span class="metric-dot dot-waiting"></span>
-                <span class="metric-name">Waiting:</span>
-                <strong class="metric-val" id="metric-val-waiting">₹0</strong>
-              </div>
-              <div class="money-metric">
-                <span class="metric-dot dot-paidout"></span>
-                <span class="metric-name">Paid out:</span>
-                <strong class="metric-val" id="metric-val-paidout">₹10,000</strong>
-              </div>
-              <div class="money-metric">
-                <span class="metric-name">Withdrawable:</span>
-                <strong class="metric-val text-emerald" id="your-money-amount">₹0</strong>
-              </div>
-            </div>
-
-            <!-- The 3x3 Action Command Hub -->
-            <div class="action-matrix-grid" id="action-matrix-container">
-              <!-- 3x3 Button grid dynamically populated -->
-            </div>
-            <div class="refusal-slot mt-2" id="matrix-refusal-slot"></div>
-          </div>
-
-          <!-- Card D: Proof Vault & Fanned Documents (Bottom-Right) -->
-          <div class="card glass-card bento-card-proof-vault">
-            <div class="proof-vault-header">
-              <h3>Proof Vault</h3>
-              <span class="badge badge-neutral" id="proof-docs-count">3 items</span>
-            </div>
-            <div class="fanned-documents-container" id="fanned-documents-deck">
-              <div class="fanned-doc-card" data-doc="1">
-                <span class="doc-badge-pill">Figma Spec</span>
-                <span class="doc-name">design_tokens.fig</span>
-              </div>
-              <div class="fanned-doc-card" data-doc="2">
-                <span class="doc-badge-pill">GitHub PR</span>
-                <span class="doc-name">PR #104 Merged</span>
-              </div>
-              <div class="fanned-doc-card" data-doc="3">
-                <span class="doc-badge-pill">Receipt</span>
-                <span class="doc-name">simulated_upi.pdf</span>
-              </div>
-            </div>
-            <div class="flex-between mt-2">
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-upload-proof">
-                + Upload Proof
-              </button>
-              <span class="text-sm text-dim" id="proof-vault-hash">Hash: 0x8f4b...</span>
-            </div>
-          </div>
+  <!-- =======================================================================
+       MODAL 3: ATTACK LAB MODAL
+       ======================================================================= -->
+  <div class="modal-backdrop hidden" id="attack-modal-backdrop">
+    <div class="modal-card max-w-750">
+      <div class="modal-header flex-between">
+        <div class="modal-title-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <h3>Attack Lab — Escrow Security Simulator</h3>
+        </div>
+        <button type="button" class="btn-close" id="btn-close-attack-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted text-sm mb-3">Test how Settl stops re-entrancy, unauthorized refunds, out-of-order execution, and replay releases.</p>
+        <div class="attack-cards-grid" id="attack-cards-container">
+          <!-- Dynamically populated attacks -->
         </div>
       </div>
-
-      <!-- History Card (Chronological Audit Log) -->
-      <div class="card glass-card history-card mt-3">
-        <div class="panel-header flex-between">
-          <div>
-            <h3>Audit & History</h3>
-            <span class="card-caption">Full chronological record of verified events and rule refusals</span>
-          </div>
-          <span class="history-note text-sm text-muted">A refusal means the contract rules worked.</span>
-        </div>
-        <div class="history-timeline" id="dash-history-timeline">
-          <!-- Dynamically populated history -->
-        </div>
+      <div class="modal-footer flex-end">
+        <button type="button" class="btn btn-secondary" id="btn-done-attack-modal">Close</button>
       </div>
-    </section>
+    </div>
+  </div>
 
-    <!-- SCREEN 4: ATTACK LAB -->
-    <section class="screen-view" id="screen-attack-lab" aria-label="Attack Lab Screen">
-      <div class="screen-header">
-        <h1 class="screen-heading">Attack Lab</h1>
-        <p class="screen-subheading">Test common smart contract and escrow attack vectors. See how Settl's rule engine stops unauthorized refunds, out-of-order execution, replay releases, and re-entrancy.</p>
+  <!-- =======================================================================
+       MODAL 4: EVIDENCE / PROOF PREVIEW & UPLOAD MODAL
+       ======================================================================= -->
+  <div class="modal-backdrop hidden" id="proof-modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header flex-between">
+        <div class="modal-title-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h3 id="proof-modal-title">Proof Document Spec</h3>
+        </div>
+        <button type="button" class="btn-close" id="btn-close-proof-modal">×</button>
       </div>
-
-      <div class="attack-cards-grid" id="attack-cards-container">
-        <!-- 4 Cards dynamically rendered -->
+      <div class="modal-body" id="proof-modal-body">
+        <!-- Dynamically injected proof content or upload form -->
       </div>
-    </section>
-
-    <!-- SCREEN 5: FINAL SETTLEMENT SUMMARY -->
-    <section class="screen-view" id="screen-summary" aria-label="Deal Summary Screen">
-      <div class="screen-header flex-between">
-        <div>
-          <h1 class="screen-heading">Final Settlement Summary</h1>
-          <p class="screen-subheading" id="summary-deal-title">Website for Riya's shop</p>
-        </div>
-        <button type="button" class="btn btn-secondary" id="btn-summary-back-dashboard">
-          ← Back to Dashboard
-        </button>
+      <div class="modal-footer flex-end gap-2" id="proof-modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-proof-modal-done">Close</button>
       </div>
+    </div>
+  </div>
 
-      <!-- Summary Details Card -->
-      <div class="card glass-card summary-card">
-        <!-- People Settlement Table -->
-        <div class="summary-section">
-          <h3>Participants Settlement</h3>
-          <div class="table-responsive mt-2">
-            <table class="simple-table" id="summary-people-table">
-              <thead>
-                <tr>
-                  <th>Person</th>
-                  <th>Role</th>
-                  <th>Paid In</th>
-                  <th>Received</th>
-                  <th>Refunded</th>
-                </tr>
-              </thead>
-              <tbody id="summary-people-tbody">
-                <!-- Dynamically populated -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Stages Settlement Table -->
-        <div class="summary-section mt-4">
-          <h3>Stages Settlement Record</h3>
-          <div class="table-responsive mt-2">
-            <table class="simple-table" id="summary-stages-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Stage Title</th>
-                  <th>Payee</th>
-                  <th>Amount</th>
-                  <th>Outcome</th>
-                </tr>
-              </thead>
-              <tbody id="summary-stages-tbody">
-                <!-- Dynamically populated -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Totals & Equation -->
-        <div class="summary-totals-box mt-4 flex-between">
-          <div class="totals-equation-badge">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            <span id="summary-equation-text">Deposited equals paid out plus refunded</span>
-          </div>
-          <div class="totals-breakdown">
-            <span>Deposited: <strong id="sum-deposited">₹30,000</strong></span>
-            <span>Paid Out: <strong id="sum-paidout">₹25,000</strong></span>
-            <span>Refunded: <strong id="sum-refunded">₹5,000</strong></span>
-          </div>
-        </div>
-
-        <!-- Legal Disclaimer Note -->
-        <div class="summary-disclaimer mt-3">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>This is a record of a simulated deal. It is not a legal document.</span>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Technical Details Modal / Drawer -->
+  <!-- =======================================================================
+       MODAL 5: TECHNICAL CONTRACT DETAILS MODAL
+       ======================================================================= -->
   <div class="modal-backdrop hidden" id="technical-modal-backdrop">
-    <div class="modal-card" id="technical-modal-card">
+    <div class="modal-card">
       <div class="modal-header flex-between">
         <div class="modal-title-wrap">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
           <h3>Technical Details</h3>
         </div>
-        <button type="button" class="btn-close" id="btn-close-tech-modal" aria-label="Close modal">×</button>
+        <button type="button" class="btn-close" id="btn-close-tech-modal">×</button>
       </div>
-
       <div class="modal-body">
         <div class="tech-item">
           <span class="tech-label">Escrow Vault Contract</span>
@@ -658,70 +605,44 @@
             <button type="button" class="btn-copy" data-target="tech-vault-address">Copy</button>
           </div>
         </div>
-
         <div class="tech-item mt-3">
           <span class="tech-label">Agreement Fingerprint (Hash)</span>
           <div class="code-box flex-between">
             <code id="tech-agreement-hash">0x8f4b2ae4c9018f2bb734a6d10c5512b9</code>
             <button type="button" class="btn-copy" data-target="tech-agreement-hash">Copy</button>
           </div>
-          <span class="tech-sub">Cryptographic digest of initial agreement words and checklist parameters.</span>
         </div>
-
         <div class="tech-item mt-3">
-          <span class="tech-label">Contract Execution Environment</span>
+          <span class="tech-label">Execution Node</span>
           <div class="tech-env-pill">
             <span class="pulsing-dot-green"></span>
-            <span>Hardhat EVM Local Node (Solidity ^0.8.24 + OpenZeppelin ReentrancyGuard)</span>
+            <span>Hardhat EVM Local Node (Solidity ^0.8.24)</span>
           </div>
         </div>
-
         <div class="tech-item mt-3">
           <span class="tech-label">Participant EVM Accounts</span>
-          <div class="accounts-list mt-1" id="tech-accounts-list">
-            <!-- Dynamically populated -->
-          </div>
+          <div class="accounts-list mt-1" id="tech-accounts-list"></div>
         </div>
       </div>
-
       <div class="modal-footer flex-end">
         <button type="button" class="btn btn-secondary" id="btn-modal-done">Done</button>
       </div>
     </div>
   </div>
 
-  <!-- Edit Checklist Item Modal -->
+  <!-- =======================================================================
+       MODAL 6: EDIT CHECKLIST MODAL
+       ======================================================================= -->
   <div class="modal-backdrop hidden" id="edit-modal-backdrop">
-    <div class="modal-card" id="edit-modal-card">
+    <div class="modal-card">
       <div class="modal-header flex-between">
         <h3 id="edit-modal-title">Edit Item</h3>
         <button type="button" class="btn-close" id="btn-close-edit-modal">×</button>
       </div>
-      <div class="modal-body" id="edit-modal-body">
-        <!-- Dynamically injected form -->
-      </div>
+      <div class="modal-body" id="edit-modal-body"></div>
       <div class="modal-footer flex-end gap-2">
         <button type="button" class="btn btn-secondary" id="btn-cancel-edit">Cancel</button>
         <button type="button" class="btn btn-primary" id="btn-save-edit">Save changes</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Proof Vault Document Preview & Upload Modal -->
-  <div class="modal-backdrop hidden" id="proof-modal-backdrop">
-    <div class="modal-card" id="proof-modal-card">
-      <div class="modal-header flex-between">
-        <div class="modal-title-wrap">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <h3 id="proof-modal-title">Proof Document Spec</h3>
-        </div>
-        <button type="button" class="btn-close" id="btn-close-proof-modal" aria-label="Close modal">×</button>
-      </div>
-      <div class="modal-body" id="proof-modal-body">
-        <!-- Dynamically injected proof content or upload form -->
-      </div>
-      <div class="modal-footer flex-end gap-2" id="proof-modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-proof-modal-done">Close</button>
       </div>
     </div>
   </div>
