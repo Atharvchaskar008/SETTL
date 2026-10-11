@@ -201,7 +201,7 @@
         </div>
 
         <div class="withdraw-section">
-          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <div class="withdraw-controls">
             <button type="button" id="withdraw-btn" class="primary">Withdraw for acting person</button>
             <span>Available for active person: <strong id="withdrawable-amount">0 rupees</strong></span>
             <button type="button" id="reset-btn">Reset</button>
@@ -211,8 +211,8 @@
 
         <!-- Log Section -->
         <div class="log-section">
-          <label><strong>Action Log:</strong></label>
-          <ol id="log-list" class="log-list" aria-live="polite">
+          <label id="log-list-label"><strong>Action Log:</strong></label>
+          <ol id="log-list" class="log-list" aria-live="polite" aria-labelledby="log-list-label">
           </ol>
         </div>
 
@@ -222,10 +222,17 @@
 
     <section id="limits" aria-labelledby="limits-heading">
       <h2 id="limits-heading">Limits</h2>
+      <ul class="limits-list">
+        <li>All money is pretend.</li>
+        <li>It cannot force anyone to work.</li>
+        <li>A person approves and a person judges.</li>
+        <li>It does not replace a legal contract.</li>
+      </ul>
     </section>
   </main>
 
   <footer>
+    <p>MilestoneVault &mdash; All money is pretend. It cannot force anyone to work. A person approves and a person judges. It does not replace a legal contract.</p>
   </footer>
 
   <script src="simulator.js"></script>
