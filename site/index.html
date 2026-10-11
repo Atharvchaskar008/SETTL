@@ -125,6 +125,20 @@
       <p>The deal: payer Riya has locked 30000 rupees. The payee is Aman. The judge is Meera. There are three stages of 10000 rupees each, all starting as Pending.</p>
       
       <div class="simulator-box">
+        <!-- Balance Bar -->
+        <div class="balance-section" aria-label="Balance reconciliation">
+          <div class="balance-values">
+            <span>Locked: <strong id="locked-balance-text">30000 rupees</strong></span>
+            <span>Waiting to be withdrawn: <strong id="waiting-balance-text">0 rupees</strong></span>
+            <span>Paid out: <strong id="paid-balance-text">0 rupees</strong></span>
+          </div>
+          <div class="balance-bar-container" role="progressbar" aria-label="Fund allocation bar" aria-valuemin="0" aria-valuemax="30000" aria-valuenow="30000">
+            <div id="bar-locked" class="bar-segment bar-locked" style="width: 100%;" title="Locked"></div>
+            <div id="bar-waiting" class="bar-segment bar-waiting" style="width: 0%;" title="Waiting to be withdrawn"></div>
+            <div id="bar-paid" class="bar-segment bar-paid" style="width: 0%;" title="Paid out"></div>
+          </div>
+        </div>
+
         <div class="actor-controls">
           <label id="actor-selector-label"><strong>Acting person:</strong></label>
           <div class="actor-buttons" role="group" aria-labelledby="actor-selector-label">
@@ -194,6 +208,15 @@
           </div>
           <div id="withdraw-feedback" class="refusal-message" role="status"></div>
         </div>
+
+        <!-- Log Section -->
+        <div class="log-section">
+          <label><strong>Action Log:</strong></label>
+          <ol id="log-list" class="log-list" aria-live="polite">
+          </ol>
+        </div>
+
+        <p class="simulator-note">This simulator illustrates the rules. In the real product they are enforced by the smart contract.</p>
       </div>
     </section>
 

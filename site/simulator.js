@@ -28,6 +28,7 @@
 
   var paidOut = 0;
   var withdrawFeedback = '';
+  var logs = [];
 
   function getLockedBalance() {
     var count = 0;
@@ -41,6 +42,15 @@
 
   function getWaitingBalance() {
     return withdrawable.Payer + withdrawable.Payee + withdrawable.Judge + withdrawable.Stranger;
+  }
+
+  function addLog(actor, actionText, accepted, reason) {
+    logs.push({
+      actor: actorDisplayNames[actor] || actor,
+      action: actionText,
+      accepted: accepted,
+      reason: reason || ''
+    });
   }
 
   function clearFeedbacks() {
@@ -59,59 +69,80 @@
   function handleMarkDone(stageId) {
     clearFeedbacks();
     var stage = stages[stageId - 1];
+    var actionText = 'Mark done on Stage ' + stageId;
 
     if (stage.status === 'Released' || stage.status === 'Refunded') {
-      stage.feedback = 'This stage is already settled.';
+      var reason = 'This stage is already settled.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (currentActor !== 'Payee') {
-      stage.feedback = 'Only the payee can mark a stage done.';
+      var reason = 'Only the payee can mark a stage done.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Completed') {
-      stage.feedback = 'This stage has already been marked done.';
+      var reason = 'This stage has already been marked done.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Disputed') {
-      stage.feedback = 'This stage is disputed; only the judge can settle it.';
+      var reason = 'This stage is disputed; only the judge can settle it.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Pending') {
       stage.status = 'Completed';
       stage.feedback = '';
+      addLog(currentActor, actionText, true, 'Stage ' + stageId + ' marked Completed.');
       render();
       return;
     }
 
-    stage.feedback = 'Invalid action for this stage.';
+    var fallbackReason = 'Invalid action for this stage.';
+    stage.feedback = fallbackReason;
+    addLog(currentActor, actionText, false, fallbackReason);
     render();
   }
 
   function handleApprove(stageId) {
     clearFeedbacks();
     var stage = stages[stageId - 1];
+    var actionText = 'Approve Stage ' + stageId;
 
     if (stage.status === 'Released' || stage.status === 'Refunded') {
-      stage.feedback = 'This stage is already settled.';
+      var reason = 'This stage is already settled.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (currentActor !== 'Payer') {
-      stage.feedback = 'Only the payer can approve a stage.';
+      var reason = 'Only the payer can approve a stage.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Pending') {
-      stage.feedback = 'This stage has not been marked done yet.';
+      var reason = 'This stage has not been marked done yet.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Disputed') {
-      stage.feedback = 'This stage is disputed; only the judge can settle it.';
+      var reason = 'This stage is disputed; only the judge can settle it.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
@@ -119,70 +150,94 @@
       stage.status = 'Released';
       withdrawable.Payee += STAGE_AMOUNT;
       stage.feedback = '';
+      addLog(currentActor, actionText, true, 'Stage ' + stageId + ' Released. 10000 rupees added to what Aman can withdraw.');
       render();
       return;
     }
 
-    stage.feedback = 'Invalid action for this stage.';
+    var fallbackReason = 'Invalid action for this stage.';
+    stage.feedback = fallbackReason;
+    addLog(currentActor, actionText, false, fallbackReason);
     render();
   }
 
   function handleDispute(stageId) {
     clearFeedbacks();
     var stage = stages[stageId - 1];
+    var actionText = 'Dispute Stage ' + stageId;
 
     if (stage.status === 'Released' || stage.status === 'Refunded') {
-      stage.feedback = 'This stage is already settled.';
+      var reason = 'This stage is already settled.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (currentActor !== 'Payer') {
-      stage.feedback = 'Only the payer can dispute a stage.';
+      var reason = 'Only the payer can dispute a stage.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Pending') {
-      stage.feedback = 'This stage has not been marked done yet.';
+      var reason = 'This stage has not been marked done yet.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Disputed') {
-      stage.feedback = 'This stage is already disputed.';
+      var reason = 'This stage is already disputed.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Completed') {
       stage.status = 'Disputed';
       stage.feedback = '';
+      addLog(currentActor, actionText, true, 'Stage ' + stageId + ' marked Disputed.');
       render();
       return;
     }
 
-    stage.feedback = 'Invalid action for this stage.';
+    var fallbackReason = 'Invalid action for this stage.';
+    stage.feedback = fallbackReason;
+    addLog(currentActor, actionText, false, fallbackReason);
     render();
   }
 
   function handleJudgePay(stageId) {
     clearFeedbacks();
     var stage = stages[stageId - 1];
+    var actionText = 'Judge: pay on Stage ' + stageId;
 
     if (stage.status === 'Released' || stage.status === 'Refunded') {
-      stage.feedback = 'This stage is already settled.';
+      var reason = 'This stage is already settled.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (currentActor !== 'Judge') {
-      stage.feedback = 'Only the judge can settle a dispute.';
+      var reason = 'Only the judge can settle a dispute.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Pending') {
-      stage.feedback = 'This stage has not been marked done yet.';
+      var reason = 'This stage has not been marked done yet.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Completed') {
-      stage.feedback = 'This stage is not disputed.';
+      var reason = 'This stage is not disputed.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
@@ -190,35 +245,47 @@
       stage.status = 'Released';
       withdrawable.Payee += STAGE_AMOUNT;
       stage.feedback = '';
+      addLog(currentActor, actionText, true, 'Judge released Stage ' + stageId + '. 10000 rupees added to what Aman can withdraw.');
       render();
       return;
     }
 
-    stage.feedback = 'Invalid action for this stage.';
+    var fallbackReason = 'Invalid action for this stage.';
+    stage.feedback = fallbackReason;
+    addLog(currentActor, actionText, false, fallbackReason);
     render();
   }
 
   function handleJudgeRefund(stageId) {
     clearFeedbacks();
     var stage = stages[stageId - 1];
+    var actionText = 'Judge: refund on Stage ' + stageId;
 
     if (stage.status === 'Released' || stage.status === 'Refunded') {
-      stage.feedback = 'This stage is already settled.';
+      var reason = 'This stage is already settled.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (currentActor !== 'Judge') {
-      stage.feedback = 'Only the judge can settle a dispute.';
+      var reason = 'Only the judge can settle a dispute.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Pending') {
-      stage.feedback = 'This stage has not been marked done yet.';
+      var reason = 'This stage has not been marked done yet.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
     if (stage.status === 'Completed') {
-      stage.feedback = 'This stage is not disputed.';
+      var reason = 'This stage is not disputed.';
+      stage.feedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
@@ -226,38 +293,49 @@
       stage.status = 'Refunded';
       withdrawable.Payer += STAGE_AMOUNT;
       stage.feedback = '';
+      addLog(currentActor, actionText, true, 'Judge refunded Stage ' + stageId + '. 10000 rupees added to what Riya can withdraw.');
       render();
       return;
     }
 
-    stage.feedback = 'Invalid action for this stage.';
+    var fallbackReason = 'Invalid action for this stage.';
+    stage.feedback = fallbackReason;
+    addLog(currentActor, actionText, false, fallbackReason);
     render();
   }
 
   function handleWithdraw() {
     clearFeedbacks();
+    var actionText = 'Withdraw';
 
     if (currentActor === 'Judge') {
-      withdrawFeedback = 'The judge settles disputes and can never take the money.';
+      var reason = 'The judge settles disputes and can never take the money.';
+      withdrawFeedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
 
     if (currentActor === 'Stranger') {
-      withdrawFeedback = 'Strangers have nothing to withdraw.';
+      var reason = 'Strangers have nothing to withdraw.';
+      withdrawFeedback = reason;
+      addLog(currentActor, actionText, false, reason);
       render();
       return;
     }
 
     var available = withdrawable[currentActor];
     if (available <= 0) {
+      var noFundsReason = '';
       if (currentActor === 'Payer') {
-        withdrawFeedback = 'Riya has nothing to withdraw.';
+        noFundsReason = 'Riya has nothing to withdraw.';
       } else if (currentActor === 'Payee') {
-        withdrawFeedback = 'Aman has nothing to withdraw.';
+        noFundsReason = 'Aman has nothing to withdraw.';
       } else {
-        withdrawFeedback = 'Nothing to withdraw.';
+        noFundsReason = 'Nothing to withdraw.';
       }
+      withdrawFeedback = noFundsReason;
+      addLog(currentActor, actionText, false, noFundsReason);
       render();
       return;
     }
@@ -265,6 +343,7 @@
     paidOut += available;
     withdrawable[currentActor] = 0;
     withdrawFeedback = '';
+    addLog(currentActor, actionText, true, 'Withdrew ' + available + ' rupees to paid out.');
     render();
   }
 
@@ -283,6 +362,7 @@
     };
     paidOut = 0;
     clearFeedbacks();
+    addLog(currentActor, 'Reset simulator', true, 'Reset to initial state.');
     render();
   }
 
@@ -330,6 +410,60 @@
     var wInfoElem = document.getElementById('withdrawable-amount');
     if (wInfoElem) {
       wInfoElem.textContent = withdrawable[currentActor] + ' rupees';
+    }
+
+    // Balances
+    var locked = getLockedBalance();
+    var waiting = getWaitingBalance();
+    var currentPaidOut = paidOut;
+
+    var lockedText = document.getElementById('locked-balance-text');
+    if (lockedText) {
+      lockedText.textContent = locked + ' rupees';
+    }
+
+    var waitingText = document.getElementById('waiting-balance-text');
+    if (waitingText) {
+      waitingText.textContent = waiting + ' rupees';
+    }
+
+    var paidText = document.getElementById('paid-balance-text');
+    if (paidText) {
+      paidText.textContent = currentPaidOut + ' rupees';
+    }
+
+    // Balance bar segments
+    var lockedBar = document.getElementById('bar-locked');
+    if (lockedBar) {
+      lockedBar.style.width = ((locked / TOTAL_AMOUNT) * 100) + '%';
+    }
+
+    var waitingBar = document.getElementById('bar-waiting');
+    if (waitingBar) {
+      waitingBar.style.width = ((waiting / TOTAL_AMOUNT) * 100) + '%';
+    }
+
+    var paidBar = document.getElementById('bar-paid');
+    if (paidBar) {
+      paidBar.style.width = ((currentPaidOut / TOTAL_AMOUNT) * 100) + '%';
+    }
+
+    // Log list
+    var logList = document.getElementById('log-list');
+    if (logList) {
+      logList.innerHTML = '';
+      for (var l = logs.length - 1; l >= 0; l--) {
+        var entry = logs[l];
+        var li = document.createElement('li');
+        li.className = 'log-entry ' + (entry.accepted ? 'accepted' : 'refused');
+        var statusLabel = entry.accepted ? 'Accepted' : 'Refused';
+        var text = entry.actor + ' tried ' + entry.action + ' — ' + statusLabel;
+        if (entry.reason) {
+          text += ': ' + entry.reason;
+        }
+        li.textContent = text;
+        logList.appendChild(li);
+      }
     }
   }
 
