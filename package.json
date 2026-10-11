@@ -7,7 +7,7 @@
     "compile": "hardhat compile",
     "test": "hardhat test && node --test \"server/test/*.test.js\"",
     "test:contract": "hardhat test",
-    "test:server": "node --test \"server/test/*.test.js\"",
+    "test:server": "hardhat compile && node --test \"server/test/*.test.js\"",
     "start": "hardhat compile && node server/src/index.js",
     "demo": "hardhat compile && node scripts/demo.js"
   },

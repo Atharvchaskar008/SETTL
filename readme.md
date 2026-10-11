@@ -221,7 +221,7 @@ These checks are plain code. The model has no say in them.
 
 After a deal is locked, the server does not decide whether an action is allowed. It sends the transaction as that person and reports what the contract said. A refusal comes back as HTTP 409 with a plain-language reason.
 
-The table shows the full API. See [Build status](#build-status) for which routes are live.
+Stage numbers in the API count from 1.
 
 | Route | Purpose |
 |---|---|
@@ -259,9 +259,11 @@ server/
   src/people.js               fictional people mapped to chain accounts
   src/chain.js                deploy, act, read state, plain-language refusal reasons
   src/deals.js                deal routes
+  src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
   fixtures/                   four sample deals
-  test/                       server tests
+  test/                       checker tests and API tests
+scripts/demo.js               end-to-end run of four deals and four attacks
 samples/                      more sample deals with their expected checklists
 hardhat.config.js, package.json, .env.example
 ```
@@ -286,6 +288,7 @@ You need Node.js 22 or newer. The first compile downloads the Solidity compiler,
 ```
 npm install
 npm test
+npm run demo
 npm start
 ```
 
@@ -294,7 +297,32 @@ npm start
 | `npm test` | Compiles the contracts and runs every contract test and server test |
 | `npm run test:contract` | Contract tests only |
 | `npm run test:server` | Server tests only |
+| `npm run demo` | Runs four deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
 | `npm start` | Starts the server at `http://localhost:3000` |
+
+### What the demo shows
+
+`npm run demo` needs no key and no set-up, and gives the same result every time.
+
+| Part | What happens |
+|---|---|
+| Freelance website | One payer, one payee, one judge: the case in the brief. Wrong moves are tried at each step and refused |
+| Flatmates sharing wifi | Three payers. The deal starts only when all three have paid, and a stage is released on two approvals out of three |
+| House construction | Three trades. One dispute is settled for the payee and one for the payer; nobody but the judge can settle either |
+| Company bonus | One payer and four employees, with one stage per person |
+| Attack lab | Second release, unauthorised refund, out-of-order steps, and re-entrancy against both the real vault and the weak copy |
+| Model reader | Only when a key is set: reads one deal with the model and reports what came back |
+
+### Trying it by hand
+
+With the server running (in PowerShell, type `curl.exe` in place of `curl`):
+
+```
+curl -X POST localhost:3000/people -H "content-type: application/json" -d "{\"names\":[\"Riya\",\"Aman\",\"Meera\"]}"
+curl -X POST localhost:3000/deals/draft -H "content-type: application/json" -d "{\"person\":\"Riya\",\"text\":\"Riya pays Rs 30000 for a website. Aman is paid Rs 30000 when the site is live. Meera settles any dispute.\"}"
+curl -X POST localhost:3000/deals/deal-1/confirm -H "content-type: application/json" -d "{\"person\":\"Riya\"}"
+curl -X POST localhost:3000/attacks/re-entrancy
+```
 
 ### Configuration
 
@@ -312,17 +340,14 @@ With no key, the offline reader is used and everything else works the same.
 
 ## Build status
 
-This section is updated as parts are finished.
-
 | Part | Status |
 |---|---|
 | Vault contract | Done. 62 contract tests pass |
 | Attack tests and the WeakVault comparison | Done |
 | Deal checker: offline reader, validation, fallback | Done. 29 tests pass |
-| Deal checker: model reader | Written. Not yet run against a live key |
-| Server: health, people, draft | Done |
-| Server: confirm, agree, lock, stage actions, history, summary, attack routes | In progress |
-| End-to-end demo script (`npm run demo`) | Not built yet |
+| Deal checker: model reader | Written. Not yet run against a live key; `npm run demo` exercises it when a key is set |
+| Server: every route in the table above | Done. 23 API tests pass |
+| End-to-end demo (`npm run demo`) | Done. Four deals and four attacks, with every step checked |
 | Web app | Not built yet |
 
 ## Limits

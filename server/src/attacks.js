@@ -46,6 +46,7 @@ async function attempt(vault, steps) {
 const moneyIn = async (vault) => (await chain.readVault(vault.target)).money;
 const deposit = (cast) => ["Payer", cast.payer, "deposits ₹30,000", "deposit", [], { value: chain.toWei(TOTAL) }];
 const refusedCount = (steps) => steps.filter((step) => step.outcome === "refused").length;
+const rupees = (amount) => `₹${amount.toLocaleString("en-IN")}`;
 
 const ATTACKS = {
   "second-release": {
@@ -175,7 +176,7 @@ const ATTACKS = {
         weakCopy,
         attackFailed,
         verdict: attackFailed
-          ? `On the real vault the attacker received ₹${realVault.attackerReceived}, exactly what it was owed. On the weak copy, which lacks the two protections, the same attacker took ₹${weakCopy.attackerReceived}.`
+          ? `On the real vault the attacker received ${rupees(realVault.attackerReceived)}, exactly what it was owed. On the weak copy, which lacks the two protections, the same attacker took ${rupees(weakCopy.attackerReceived)}.`
           : "Unexpected result: the attacker took more than it was owed from the real vault.",
       };
     },
