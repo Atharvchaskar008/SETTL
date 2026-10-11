@@ -560,71 +560,145 @@
         </section>
 
         <!-- -----------------------------------------------------------------
-             BOTTOM-RIGHT CARD: Payout & Audio (Matching Speakers Card)
+             BOTTOM-RIGHT CARD: Agreement Details & Arbiter Resolution Panel
              ----------------------------------------------------------------- -->
-        <section class="bento-card bento-speaker-payout" id="card-payout-speaker">
-          <!-- Top Row: Speakers Title + Toggle -->
+        <section class="bento-card bento-agreement-details" id="card-payout-speaker">
+          <!-- Card Header -->
           <div class="card-header-clean flex-between">
             <div>
-              <h3 class="dropdown-title">Speakers</h3>
-              <p class="dropdown-sub-caption">Playing • Aman (Provider)</p>
+              <h2 class="card-clean-title">Agreement & Escrow Terms</h2>
+              <p class="card-clean-subtitle">Contract specifications, documents & dispute ruling</p>
             </div>
-            <label class="clean-toggle-switch">
-              <input type="checkbox" checked id="toggle-speaker-payout" />
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-            </label>
+            <div class="card-details-badge">
+              <span class="terms-status-tag" id="agreement-terms-status-pill">On-Chain Locked</span>
+            </div>
           </div>
 
-          <!-- Center Radial Gauge with User Profile Avatar -->
-          <div class="speaker-avatar-gauge-stage">
-            <div class="gauge-timestamp-row">
-              <span class="time-elapsed">0:34</span>
-              <span class="time-divider">/</span>
-              <span class="time-total">2:27</span>
-            </div>
+          <!-- Internal Navigation Tabs for Details Card -->
+          <div class="details-internal-tabs" role="tablist">
+            <button type="button" class="details-tab-btn active" data-tab="terms">Terms</button>
+            <button type="button" class="details-tab-btn" data-tab="breakdown">Breakdown</button>
+            <button type="button" class="details-tab-btn" data-tab="evidence">Evidence</button>
+            <button type="button" class="details-tab-btn" data-tab="resolution">Resolution</button>
+          </div>
 
-            <!-- Radial Progress Arc Ring with Photo in Center -->
-            <div class="radial-ring-container">
-              <svg class="radial-svg" width="130" height="130" viewBox="0 0 100 100">
-                <circle class="ring-bg" cx="50" cy="50" r="44"/>
-                <circle class="ring-progress" cx="50" cy="50" r="44"/>
-              </svg>
-              <div class="ring-avatar-face">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&h=160&fit=crop&crop=face" alt="Priya Sharma" />
+          <!-- Tab Content Panes Container -->
+          <div class="details-tab-panes-scroll">
+            <!-- 1. Terms Pane (Active) -->
+            <div class="details-pane active" id="pane-details-terms">
+              <div class="terms-card-block">
+                <span class="terms-label">Agreed Purpose</span>
+                <p class="terms-text" id="terms-purpose-text">Design and full frontend development of a responsive website in 3 verifiable milestones.</p>
+              </div>
+              <div class="terms-card-block">
+                <span class="terms-label">Dispute Clause</span>
+                <p class="terms-text">Arbiter <strong>Meera</strong> holds neutral dispute authority to either release funds to the provider or issue a full refund to the client.</p>
+              </div>
+              <div class="terms-card-block">
+                <span class="terms-label">Contract Verification</span>
+                <div class="hash-display-row flex-between">
+                  <span class="code-font text-sm" id="details-fingerprint-val">SHA256: 0x8f4b2ae910b847...</span>
+                  <span class="badge badge-success">Verified</span>
+                </div>
               </div>
             </div>
 
-            <div class="speaker-amount-caption">
-              Withdrawable: <strong class="text-blue" id="your-money-amount">₹0</strong>
+            <!-- 2. Payment Breakdown Pane -->
+            <div class="details-pane" id="pane-details-breakdown">
+              <div class="breakdown-table-wrap">
+                <table class="breakdown-simple-table">
+                  <thead>
+                    <tr>
+                      <th>Stage</th>
+                      <th>Payee</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="breakdown-stages-tbody">
+                    <tr>
+                      <td>1. Design</td>
+                      <td>Aman</td>
+                      <td>₹10,000</td>
+                      <td><span class="badge badge-completed">Submitted</span></td>
+                    </tr>
+                    <tr>
+                      <td>2. Pages</td>
+                      <td>Aman</td>
+                      <td>₹15,000</td>
+                      <td><span class="badge badge-pending">In Progress</span></td>
+                    </tr>
+                    <tr>
+                      <td>3. Launch</td>
+                      <td>Aman</td>
+                      <td>₹5,000</td>
+                      <td><span class="badge badge-neutral">Upcoming</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Withdrawable & Deposit Controls -->
+              <div class="payout-action-box flex-between mt-3">
+                <div>
+                  <div class="text-xs text-dim">Your Withdrawable Balance</div>
+                  <div class="text-md font-bold text-accent" id="details-withdrawable-amt">₹0</div>
+                </div>
+                <div class="flex-align-center gap-2">
+                  <button type="button" class="btn-stage-op primary" id="btn-matrix-withdraw" title="Withdraw available funds to your wallet">Withdraw Funds</button>
+                  <button type="button" class="btn-stage-op" id="btn-matrix-deposit" title="Simulated UPI deposit">Deposit</button>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- Bottom Audio / Payout Control Bar (5 Icons Exact) -->
-          <div class="playback-controls-row flex-between">
-            <!-- Shuffle / Withdraw -->
-            <button type="button" class="control-icon-btn" id="btn-matrix-withdraw" title="Withdraw Funds">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-            </button>
+            <!-- 3. Submitted Evidence & Proof Pane -->
+            <div class="details-pane" id="pane-details-evidence">
+              <div class="evidence-docs-list" id="evidence-docs-list-box">
+                <div class="evidence-item-card" data-doc-id="1">
+                  <div class="evidence-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </div>
+                  <div class="evidence-meta">
+                    <div class="evidence-title">design_tokens.fig</div>
+                    <div class="evidence-sub">Uploaded by Aman • Stage 1 UI prototype</div>
+                  </div>
+                  <span class="badge badge-completed">Accepted</span>
+                </div>
 
-            <!-- Prev -->
-            <button type="button" class="control-icon-btn" id="btn-ctrl-prev" title="Previous Milestone">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>
-            </button>
+                <div class="evidence-item-card" data-doc-id="2">
+                  <div class="evidence-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                  </div>
+                  <div class="evidence-meta">
+                    <div class="evidence-title">PR #104 (Frontend Build)</div>
+                    <div class="evidence-sub">GitHub repository pull request • 18 commits</div>
+                  </div>
+                  <span class="badge badge-neutral">In Review</span>
+                </div>
+              </div>
+            </div>
 
-            <!-- Play / Pause (Filled Center Button) -->
-            <button type="button" class="control-play-pause-btn btn-stage-action" data-action="approve" data-stage="stg-2" id="btn-ctrl-approve" title="Approve & Release Funds">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-            </button>
+            <!-- 4. Dispute Status & Arbiter Resolution Pane -->
+            <div class="details-pane" id="pane-details-resolution">
+              <div class="dispute-status-banner" id="dispute-status-banner">
+                <div class="dispute-banner-header flex-align-center gap-2">
+                  <span class="dispute-icon">⚖</span>
+                  <div>
+                    <h4 class="dispute-title" id="dispute-banner-title">No Active Dispute</h4>
+                    <p class="dispute-sub" id="dispute-banner-sub">All milestones are proceeding in good standing.</p>
+                  </div>
+                </div>
 
-            <!-- Next -->
-            <button type="button" class="control-icon-btn" id="btn-ctrl-next" title="Next Milestone">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
-            </button>
-
-            <!-- Cast / Deposit -->
-            <button type="button" class="control-icon-btn" id="btn-matrix-deposit" title="Deposit Simulated Funds">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
-            </button>
+                <!-- Arbiter Controls (Displayed if user is arbiter and dispute is open) -->
+                <div class="arbiter-ruling-controls mt-3" id="arbiter-ruling-controls-box">
+                  <div class="text-xs text-dim mb-2">Arbiter Ruling Options:</div>
+                  <div class="flex-align-center gap-2">
+                    <button type="button" class="btn-stage-op primary btn-stage-action" data-action="pay_payee" data-stage="stg-1" id="btn-arbiter-rule-pay">Release to Payee</button>
+                    <button type="button" class="btn-stage-op danger btn-stage-action" data-action="refund_payers" data-stage="stg-1" id="btn-arbiter-rule-refund">Refund to Client</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
