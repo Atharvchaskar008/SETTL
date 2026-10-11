@@ -1,8 +1,8 @@
-# MilestoneVault Explainer Page
+# Settl Explainer Page
 
-This static web page explains MilestoneVault and demonstrates its stage path rules with an interactive simulator.
+This static web page explains Settl and demonstrates its stage path rules with an interactive simulator.
 
-MilestoneVault turns a deal written in plain words into a locked agreement. People join, pretend money is locked, and each person is paid only when their stage is approved.
+Settl turns a deal written in plain words into a locked agreement. People join, pretend money is locked, and each person is paid only when their stage is approved.
 
 ## How to Open
 
