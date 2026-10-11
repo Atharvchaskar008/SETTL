@@ -22,6 +22,27 @@ const { dropUnsourced } = require("./validate");
  *   dropped: { kind: string, label: string, source: string }[]
  * }>}
  */
+// Every amount in Settl is in rupees. A deal written in another currency would
+// otherwise have its numbers read as rupees, by either reader, without a word.
+const OTHER_CURRENCY = /[$€£¥]|\b(?:USD|EUR|GBP|dollars?|euros?|pounds?)\b/i;
+
+/** Adds an unclear point when the text names a currency other than rupees, so a person must settle it. */
+function flagOtherCurrency(checklist, text) {
+  const found = text.match(OTHER_CURRENCY);
+  if (!found) return checklist;
+  return {
+    ...checklist,
+    unclear: [
+      ...checklist.unclear,
+      {
+        issue: "Another currency is mentioned",
+        question: `The deal mentions "${found[0]}". Settl works in rupees, so state every amount in rupees.`,
+        source: found[0],
+      },
+    ],
+  };
+}
+
 async function readDeal(text, { env = process.env, modelReader = readByModel } = {}) {
   if (typeof text !== "string" || text.trim() === "") {
     throw new Error("The deal text is empty.");
@@ -48,14 +69,20 @@ async function readDeal(text, { env = process.env, modelReader = readByModel } =
       if (checklist.stages.length === 0) {
         throw new Error("The model proposed no stage that quotes the deal text.");
       }
-      return { checklist: { ...checklist, readBy: "model" }, readBy: "model", model: provider.model, fallbackReason: null, dropped };
+      return {
+        checklist: { ...flagOtherCurrency(checklist, text), readBy: "model" },
+        readBy: "model",
+        model: provider.model,
+        fallbackReason: null,
+        dropped,
+      };
     } catch (error) {
       fallbackReason = error.message;
     }
   }
 
   const { checklist, dropped } = dropUnsourced(readByRules(text), text);
-  return { checklist: { ...checklist, readBy: "rules" }, readBy: "rules", model: null, fallbackReason, dropped };
+  return { checklist: { ...flagOtherCurrency(checklist, text), readBy: "rules" }, readBy: "rules", model: null, fallbackReason, dropped };
 }
 
 module.exports = { readDeal };

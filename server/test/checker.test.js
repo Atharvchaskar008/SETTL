@@ -317,3 +317,34 @@ describe("model path and fallback", () => {
     assert.deepEqual(result.dropped, []);
   });
 });
+
+describe("other currencies", () => {
+  const dollars = "Riya pays $300 for a logo. Aman is paid $300 when the logo is delivered. Meera settles any dispute.";
+
+  test("a deal written in dollars is flagged by the offline reader, not read as rupees in silence", async () => {
+    const { checklist } = await readDeal(dollars, { env: { CHECKER_MODE: "rules" } });
+    assert.ok(checklist.unclear.some((item) => item.issue === "Another currency is mentioned"));
+  });
+
+  test("the same flag is added to what a model proposes", async () => {
+    const modelReader = async () => ({
+      title: "Logo",
+      payers: [{ name: "Riya", share: 300 }],
+      judge: { name: "Meera" },
+      stages: [{ title: "Logo", payee: "Aman", amount: 300, condition: "the logo is delivered", source: "Aman is paid $300 when the logo is delivered." }],
+      unclear: [],
+      total: 300,
+      stake: 0,
+    });
+    const read = await readDeal(dollars, { env: { ANTHROPIC_API_KEY: "test-key" }, modelReader });
+    assert.equal(read.readBy, "model");
+    assert.ok(validate(read.checklist, dollars).some((problem) => problem.code === "unclear"));
+  });
+
+  test("a deal in rupees is not flagged", async () => {
+    const { checklist } = await readDeal("Riya pays ₹300 for a logo. Aman is paid Rs 300 when the logo is delivered. Meera settles any dispute.", {
+      env: { CHECKER_MODE: "rules" },
+    });
+    assert.equal(checklist.unclear.some((item) => item.issue === "Another currency is mentioned"), false);
+  });
+});
