@@ -1,0 +1,45 @@
+{
+  "title": "Engineering Migration Bonus",
+  "payers": [
+    { "name": "Zenith Cloud Technologies Private Limited", "share": 100000 }
+  ],
+  "judge": { "name": "Kavita Rao" },
+  "stages": [
+    {
+      "title": "Migration Bonus - Developer 1",
+      "payee": "",
+      "amount": 25000,
+      "condition": "the production cloud migration passes security audit",
+      "source": "each of the four developers receives 25000 rupees when the production cloud migration passes security audit"
+    },
+    {
+      "title": "Migration Bonus - Developer 2",
+      "payee": "",
+      "amount": 25000,
+      "condition": "the production cloud migration passes security audit",
+      "source": "each of the four developers receives 25000 rupees when the production cloud migration passes security audit"
+    },
+    {
+      "title": "Migration Bonus - Developer 3",
+      "payee": "",
+      "amount": 25000,
+      "condition": "the production cloud migration passes security audit",
+      "source": "each of the four developers receives 25000 rupees when the production cloud migration passes security audit"
+    },
+    {
+      "title": "Migration Bonus - Developer 4",
+      "payee": "",
+      "amount": 25000,
+      "condition": "the production cloud migration passes security audit",
+      "source": "each of the four developers receives 25000 rupees when the production cloud migration passes security audit"
+    }
+  ],
+  "unclear": [
+    {
+      "issue": "Missing developer names",
+      "question": "What are the names of the four developers who should receive the bonus?",
+      "source": "each of the four developers"
+    }
+  ],
+  "total": 100000
+}

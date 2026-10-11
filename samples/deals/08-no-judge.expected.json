@@ -1,0 +1,31 @@
+{
+  "title": "Apartment Deep Cleaning and Painting",
+  "payers": [
+    { "name": "Aditya Verma", "share": 5000 },
+    { "name": "Rohan Mehta", "share": 5000 },
+    { "name": "Sameer Khan", "share": 0 }
+  ],
+  "judge": { "name": "" },
+  "stages": [
+    {
+      "title": "Apartment Cleaning and Painting",
+      "payee": "Apex Home Services",
+      "amount": 15000,
+      "condition": "all three bedrooms, hall, and kitchen are completely cleaned and repainted",
+      "source": "The full amount of 15000 rupees will be released to Apex Home Services in a single stage once all three bedrooms, hall, and kitchen are completely cleaned and repainted."
+    }
+  ],
+  "unclear": [
+    {
+      "issue": "Missing judge",
+      "question": "Who will act as the judge to resolve disputes?",
+      "source": ""
+    },
+    {
+      "issue": "Missing payer share",
+      "question": "What is the exact share in whole rupees that Sameer Khan will pay?",
+      "source": "Sameer Khan will contribute his share"
+    }
+  ],
+  "total": 15000
+}
