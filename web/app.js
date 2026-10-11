@@ -727,7 +727,51 @@ function setupDashboardInteractions() {
     openUploadProofModal();
   });
 
-  // Card A: (+) and Prompt Input
+  // Bento Card Controls & Navigation
+  document.getElementById("btn-add-agreement-pill")?.addEventListener("click", () => {
+    openWizardModal();
+  });
+
+  document.getElementById("btn-view-all-deals")?.addEventListener("click", () => {
+    openDealsModal();
+  });
+
+  document.getElementById("btn-inspect-vault-proof")?.addEventListener("click", () => {
+    openProofDocPreview("1");
+  });
+
+  // Cycle Milestones (Prev / Next in Speaker Payout Card)
+  document.getElementById("btn-ctrl-prev")?.addEventListener("click", () => {
+    if (!state.currentDeal || !state.currentDeal.stages.length) return;
+    const stages = state.currentDeal.stages;
+    const currIdx = stages.findIndex(s => s.id === state.activeStageId);
+    const newIdx = (currIdx - 1 + stages.length) % stages.length;
+    state.activeStageId = stages[newIdx].id;
+    renderDealDashboard(state.currentDeal);
+  });
+
+  document.getElementById("btn-ctrl-next")?.addEventListener("click", () => {
+    if (!state.currentDeal || !state.currentDeal.stages.length) return;
+    const stages = state.currentDeal.stages;
+    const currIdx = stages.findIndex(s => s.id === state.activeStageId);
+    const newIdx = (currIdx + 1) % stages.length;
+    state.activeStageId = stages[newIdx].id;
+    renderDealDashboard(state.currentDeal);
+  });
+
+  // Agreement items in Right Card
+  document.querySelectorAll(".agreement-item-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const dealId = row.getAttribute("data-deal-id");
+      if (dealId && dealId !== state.currentDealId) {
+        loadDealDashboard(dealId);
+      } else {
+        openDealsModal();
+      }
+    });
+  });
+
+  // Hero (+) and Prompt Input
   document.getElementById("btn-hero-attach")?.addEventListener("click", () => {
     openUploadProofModal();
   });

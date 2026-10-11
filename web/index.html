@@ -13,356 +13,452 @@
 </head>
 <body>
 
-  <!-- Fullscreen Floating Tablet Container (Matching Reference Soft Gradient & Glass Frame) -->
-  <div class="tablet-viewport-wrapper">
-    <div class="tablet-frame" id="app-tablet-frame">
+  <!-- Fullscreen Zero-Scroll Viewport with Clean Blue Bento Frame -->
+  <div class="settl-app-viewport">
+    <div class="settl-dashboard-frame" id="app-dashboard-frame">
 
-      <!-- Left Vertical Rail (Sparkle, Capsule with 5 Icons, Bridge Notch, Bottom Avatar) -->
-      <aside class="tablet-rail">
-        <div class="rail-top-sparkle glass-circle-btn" id="rail-sparkle-btn" title="Settl Home / Refresh">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      <!-- ===================================================================
+           LEFT NAVIGATION RAIL (Exact Image Structure)
+           =================================================================== -->
+      <aside class="settl-left-rail">
+        <!-- Brand Clover Emblem -->
+        <div class="rail-top-brand" id="rail-home-btn" title="Settl Home">
+          <svg class="brand-clover-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2a4 4 0 0 0-4 4 4 4 0 0 0 1.17 2.83A4 4 0 0 0 6 12a4 4 0 0 0 2.83 3.83A4 4 0 0 0 12 22a4 4 0 0 0 4-4 4 4 0 0 0-1.17-2.83A4 4 0 0 0 18 12a4 4 0 0 0-2.83-3.83A4 4 0 0 0 12 2zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-4 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm-4 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
           </svg>
         </div>
 
-        <div class="rail-nav-capsule">
-          <button type="button" class="rail-capsule-dot active" id="rail-btn-dashboard" title="Agreement & Milestones Dashboard" data-view="dashboard">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <!-- Vertical Nav Icons Stack -->
+        <nav class="rail-nav-stack" aria-label="Main Navigation">
+          <!-- Bento Grid Dashboard Icon (Active) -->
+          <button type="button" class="rail-nav-btn active" id="rail-btn-dashboard" title="Dashboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="3" y="3" width="7" height="7" rx="2"/>
+              <rect x="14" y="3" width="7" height="7" rx="2"/>
+              <rect x="3" y="14" width="7" height="7" rx="2"/>
+              <rect x="14" y="14" width="7" height="7" rx="2"/>
+            </svg>
           </button>
-          <button type="button" class="rail-capsule-dot" id="rail-btn-deals" title="All Agreed Deals" data-view="deals">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          </button>
-          <button type="button" class="rail-capsule-dot" id="rail-btn-ai-builder" title="AI Agreement Builder Wizard" data-view="new-deal">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 2 4 4-14 14H4v-4L18 2z"/><path d="m15 5 3 3"/></svg>
-          </button>
-          <button type="button" class="rail-capsule-dot" id="rail-btn-arbiter" title="Arbiter Panel" data-view="arbiter">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-          </button>
-          <button type="button" class="rail-capsule-dot" id="rail-btn-attacks" title="Attack Lab" data-view="attack-lab">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </button>
-        </div>
 
-        <!-- Distinctive circular notch node touching Card A on the left border -->
-        <div class="rail-bridge-notch" id="rail-bridge-notch" title="Connected Room">
-          <div class="bridge-inner-dot"></div>
-        </div>
-
-        <div class="rail-bottom-area">
-          <button type="button" class="rail-icon-sm glass-pill-btn" id="btn-reset-demo" title="Reset Demo Data">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          <!-- Location Pin / Deals -->
+          <button type="button" class="rail-nav-btn" id="rail-btn-deals" title="Agreements Switcher">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
           </button>
-          <div class="rail-avatar-circle glass-circle-btn" id="rail-avatar-badge" title="Acting as Persona: Click to switch">
-            <span id="rail-avatar-initial">R</span>
+
+          <!-- Document / AI Builder -->
+          <button type="button" class="rail-nav-btn" id="rail-btn-ai-builder" title="AI Agreement Builder">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </button>
+
+          <!-- Gauge / Arbiter -->
+          <button type="button" class="rail-nav-btn" id="rail-btn-arbiter" title="Smart Arbiter">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+            </svg>
+          </button>
+
+          <!-- Shield / Security -->
+          <button type="button" class="rail-nav-btn" id="rail-btn-attacks" title="Security & Hardhat Node">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </button>
+
+          <!-- Bell / Alerts -->
+          <button type="button" class="rail-nav-btn" id="rail-btn-notifications" title="Pending Actions & Alerts">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </button>
+        </nav>
+
+        <!-- Rail Bottom (Settings & Persona Avatar) -->
+        <div class="rail-bottom-stack">
+          <button type="button" class="rail-icon-btn" id="btn-reset-demo" title="Reset Demo Data">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+
+          <div class="rail-avatar-wrapper" id="rail-avatar-badge" title="Acting Persona: Click to switch">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=face" alt="Priya Sharma" id="rail-avatar-img" />
+            <span class="hidden" id="rail-avatar-initial">R</span>
           </div>
         </div>
       </aside>
 
-      <!-- Main Tablet Canvas (Top Capsule + Bento Grid of Cards A, B, C, D) -->
-      <main class="tablet-canvas">
+      <!-- ===================================================================
+           MAIN BENTO CONTENT AREA (Exact Bento Cards of Reference Image)
+           =================================================================== -->
+      <main class="settl-bento-grid">
 
-        <!-- Top Right Capsule Pill Bar (Simulated Funds, Try Anything, Persona) -->
-        <header class="tablet-top-capsule-bar">
-          <div class="capsule-left-deal-title glass-pill-btn" id="deal-title-pill" title="Click to switch agreement">
-            <span class="deal-pill-icon">✦</span>
-            <span class="deal-pill-text" id="capsule-deal-title">Website for Riya's shop</span>
-            <span class="deal-pill-chevron">▾</span>
+        <!-- -----------------------------------------------------------------
+             TOP-LEFT HERO CARD: Panoramic Workspace Room Banner
+             ----------------------------------------------------------------- -->
+        <section class="bento-card bento-hero-panoramic" id="card-hero-agreement">
+          <!-- Panoramic Background Image Layer -->
+          <div class="hero-panoramic-backdrop"></div>
+
+          <!-- Top Floating Pills Row -->
+          <div class="hero-floating-top-row">
+            <!-- Left Live Badge -->
+            <div class="glass-pill-badge live-pill" title="Simulated funds enabled in EVM Vault">
+              <span class="pulsing-live-dot"></span>
+              <span class="live-text">Live</span>
+            </div>
+
+            <!-- Right Telemetry Stat Pills -->
+            <div class="hero-telemetry-pills">
+              <div class="glass-pill-badge" title="Total Escrow Value">
+                <span class="pill-icon">🏛</span>
+                <span id="dash-money-total">₹30,000</span>
+              </div>
+              <div class="glass-pill-badge" title="Funds currently locked in vault">
+                <span class="pill-icon">🔒</span>
+                <span id="metric-val-locked">₹20,000</span>
+              </div>
+              <div class="glass-pill-badge" title="Paid out to provider">
+                <span class="pill-icon">⚡</span>
+                <span id="metric-val-paidout">₹10,000</span>
+              </div>
+              <div class="glass-pill-badge" title="Vault reconciliation status">
+                <span class="pill-icon">🛡</span>
+                <span id="dash-reconcile-badge">100% Valid</span>
+              </div>
+            </div>
           </div>
 
-          <div class="capsule-right-controls">
-            <!-- Simulated Funds Badge -->
-            <div class="simulated-pill-badge" title="Simulated funds enabled for testing safety">
-              <span class="pulsing-dot-green"></span>
-              <span class="simulated-pill-text">Simulated funds</span>
+          <!-- Bottom Hero Overlay Content -->
+          <div class="hero-bottom-overlay">
+            <div class="hero-title-group">
+              <div class="hero-agency-chip" id="capsule-deal-title">Design Agency</div>
+              <h1 class="hero-main-title" id="dash-deal-title">Website redesign</h1>
+              <p class="hero-subtitle">Smart Staged Escrow • 3 of 5 milestones settled • Meera (Arbiter)</p>
             </div>
 
-            <!-- Try Anything Toggle -->
-            <div class="try-anything-pill-wrapper" title="Try Anything: Test illegal transitions as any participant">
-              <label class="switch-inline" for="toggle-try-anything">
-                <span class="switch-text">Try anything</span>
-                <input type="checkbox" id="toggle-try-anything" />
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <!-- Acting As Selector -->
-            <div class="acting-as-pill glass-pill-btn">
-              <span class="acting-label">Acting:</span>
-              <select id="select-acting-as" aria-label="Acting as persona selector">
-                <!-- Dynamically populated from /people -->
-              </select>
+            <!-- Hero Floating Prompt Pill Bar: (+) [ Prompt Input ] [ Submit ] -->
+            <div class="hero-input-capsule">
+              <button type="button" class="capsule-add-btn" id="btn-hero-attach" title="Upload proof or attach document">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <input type="text" class="capsule-input-box" id="hero-ai-input" placeholder="Instruct AI arbiter or paste milestone terms..." />
+              <button type="button" class="capsule-submit-btn" id="btn-hero-ai-submit">Submit</button>
             </div>
           </div>
-        </header>
 
-        <!-- Bento Grid Layout: 2 Columns x 2 Rows (Fits in Viewport, Zero Scroll) -->
-        <div class="tablet-bento-grid">
+          <div id="hero-ai-toast-slot"></div>
+          <div class="refusal-slot" id="refusal-stage-active"></div>
+        </section>
 
-          <!-- ===============================================================
-               CARD A: Hero Agreement & Milestones (Top-Left / Center)
-               =============================================================== -->
-          <section class="bento-card bento-card-a" id="card-hero-agreement">
-            <div class="micro-spec-label">AGREEMENT ROOM // V.02</div>
+        <!-- -----------------------------------------------------------------
+             TOP-RIGHT CARD: "Agreements" List (Matching "Rooms" in Reference)
+             ----------------------------------------------------------------- -->
+        <section class="bento-card bento-agreements-list" id="card-agreements-panel">
+          <div class="card-header-clean flex-between">
+            <h2 class="card-clean-title">Agreements</h2>
+            <button type="button" class="circle-clean-btn" id="btn-view-all-deals" title="View all agreements">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="19" cy="12" r="1"></circle>
+                <circle cx="5" cy="12" r="1"></circle>
+              </svg>
+            </button>
+          </div>
 
-            <div class="card-a-header flex-between">
-              <div>
-                <div class="title-row-with-badge">
-                  <h2 class="card-title-lg" id="dash-deal-title">Website for Riya's shop</h2>
-                  <span class="badge badge-released" id="dash-phase-badge">Active</span>
+          <!-- Vertical Agreements List -->
+          <div class="agreements-items-stack" id="action-centre-stack-list">
+            <!-- Item 1: Brand Identity -->
+            <div class="agreement-item-row" data-deal-id="deal-2">
+              <div class="item-left flex-align-center gap-3">
+                <div class="item-icon-box">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                 </div>
-                <div class="card-a-participants-chips" id="dash-participants-meta">
-                  <span class="participant-chip chip-client">Client: <strong>Riya</strong></span>
-                  <span class="participant-chip chip-provider">Provider: <strong>Aman</strong></span>
-                  <span class="participant-chip chip-arbiter">Arbiter: <strong>Meera</strong></span>
+                <div>
+                  <div class="item-name">Brand Identity</div>
+                  <div class="item-meta">3 device(s) • ₹45,000</div>
                 </div>
               </div>
-              <div class="card-a-header-actions">
-                <button type="button" class="btn-text-sm" id="btn-open-technical-details">Technical details &gt;</button>
-              </div>
+              <span class="item-chevron">›</span>
             </div>
 
-            <!-- Center Showcase: Active Milestone with Upward Glass Emblem matching Reference -->
-            <div class="hero-center-showcase">
-              <div class="active-stage-details-box" id="active-stage-card-box">
-                <div class="stage-headline-row flex-between">
-                  <div class="flex-align-center gap-2">
-                    <div class="center-emblem-badge glass-circle-btn" title="Milestone In Progress">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="19" x2="12" y2="5"></line>
-                        <polyline points="5 12 12 5 19 12"></polyline>
-                      </svg>
-                    </div>
-                    <div>
-                      <span class="stage-step-tag">CURRENT MILESTONE</span>
-                      <h3 class="stage-headline-title" id="active-milestone-title">Stage 2: Frontend Development & Integration</h3>
-                    </div>
+            <!-- Item 2: Mobile App Dev -->
+            <div class="agreement-item-row" data-deal-id="deal-3">
+              <div class="item-left flex-align-center gap-3">
+                <div class="item-icon-box">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </div>
+                <div>
+                  <div class="item-name">Mobile App Dev</div>
+                  <div class="item-meta">2 device(s) • ₹1,20,000</div>
+                </div>
+              </div>
+              <span class="item-chevron">›</span>
+            </div>
+
+            <!-- Item 3: Website Redesign (ACTIVE - Floating White Card with Shadow) -->
+            <div class="agreement-item-row active-elevated" data-deal-id="deal-1">
+              <div class="item-left flex-align-center gap-3">
+                <div class="item-icon-box active-box">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                </div>
+                <div>
+                  <div class="item-name">Website Redesign</div>
+                  <div class="item-meta">5 device(s) • ₹30,000</div>
+                </div>
+              </div>
+              <span class="item-chevron">›</span>
+            </div>
+
+            <!-- Item 4: SEO & Marketing -->
+            <div class="agreement-item-row" data-deal-id="deal-4">
+              <div class="item-left flex-align-center gap-3">
+                <div class="item-icon-box">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </div>
+                <div>
+                  <div class="item-name">SEO & Marketing</div>
+                  <div class="item-meta">1 device(s) • ₹15,000</div>
+                </div>
+              </div>
+              <span class="item-chevron">›</span>
+            </div>
+          </div>
+
+          <!-- Bottom Dark Full-Width Pill Button: + ADD AGREEMENT -->
+          <button type="button" class="btn-dark-pill-full" id="btn-add-agreement-pill">
+            <span>+ ADD AGREEMENT</span>
+          </button>
+        </section>
+
+        <!-- -----------------------------------------------------------------
+             BOTTOM-LEFT CARD: Milestone Vault (Matching Vacuum Cleaner Card)
+             ----------------------------------------------------------------- -->
+        <section class="bento-card bento-vault-showcase" id="card-milestone-showcase">
+          <!-- Top Row: Dropdown Title + Toggle Switch -->
+          <div class="card-header-clean flex-between">
+            <div class="dropdown-header-group">
+              <div class="dropdown-title-row">
+                <h3 class="dropdown-title" id="active-milestone-title">Stage 2: Frontend & Spec</h3>
+                <span class="dropdown-chevron-sm">▾</span>
+              </div>
+              <p class="dropdown-sub-caption" id="active-milestone-condition">Robot vacuum cleaner • Design files in review</p>
+            </div>
+            <!-- Toggle Switch -->
+            <label class="clean-toggle-switch">
+              <input type="checkbox" checked id="toggle-milestone-lock" />
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+            </label>
+          </div>
+
+          <!-- Center Interactive Showcase: Circular Escrow Vault Disk with Callouts -->
+          <div class="vault-center-graphic-stage">
+            <!-- Left Stat Badge Callout -->
+            <div class="floating-callout-badge left-badge">
+              <div class="callout-value" id="active-milestone-amount">₹15,000</div>
+              <div class="callout-label">Locked Escrow</div>
+            </div>
+
+            <!-- Central High-Tech Circular Vault Disk (Matching Robot Vacuum Silhouette) -->
+            <div class="concentric-vault-disk" id="btn-inspect-vault-proof" title="Click to view milestone verification proof">
+              <div class="disk-outer-ring">
+                <div class="disk-middle-groove">
+                  <div class="disk-core-hub">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <circle cx="12" cy="12" r="4"/>
+                      <line x1="12" y1="2" x2="12" y2="4"/>
+                      <line x1="12" y1="20" x2="12" y2="22"/>
+                    </svg>
                   </div>
-                  <div class="stage-headline-amount" id="active-milestone-amount">₹15,000</div>
-                </div>
-
-                <div class="stage-condition-quote">
-                  <span class="condition-label">Condition:</span>
-                  <p id="active-milestone-condition">"Deploy responsive liquid glass frontend with verified build"</p>
-                </div>
-
-                <!-- Status Progression Stepper -->
-                <div class="milestone-status-progression">
-                  <div class="status-step-pill passed">
-                    <span class="step-dot"></span>
-                    <span>Pending</span>
-                  </div>
-                  <div class="step-connector active"></div>
-                  <div class="status-step-pill current">
-                    <span class="step-dot"></span>
-                    <span>Submitted</span>
-                  </div>
-                  <div class="step-connector"></div>
-                  <div class="status-step-pill">
-                    <span class="step-dot"></span>
-                    <span>Approved / Disputed</span>
-                  </div>
-                  <div class="step-connector"></div>
-                  <div class="status-step-pill">
-                    <span class="step-dot"></span>
-                    <span>Resolved</span>
-                  </div>
-                </div>
-
-                <!-- Milestone Action Buttons -->
-                <div class="stage-buttons-toolbar flex-between">
-                  <div class="stage-waiting-info" id="active-milestone-waiting-text">
-                    Waiting for Client approval
-                  </div>
-                  <div class="stage-buttons-group" id="active-stage-buttons-area">
-                    <button type="button" class="btn glass-pill-btn btn-sm btn-stage-action" data-action="done" data-stage="stg-2">Submit Proof</button>
-                    <button type="button" class="btn glass-pill-btn btn-sm btn-primary-action btn-stage-action" data-action="approve" data-stage="stg-2">Approve</button>
-                    <button type="button" class="btn glass-pill-btn btn-sm btn-danger-action btn-stage-action" data-action="dispute" data-stage="stg-2">Dispute</button>
-                  </div>
-                </div>
-                <div class="refusal-slot" id="refusal-stage-active"></div>
-              </div>
-            </div>
-
-            <!-- Card A Bottom Pill Input Bar: (+) [ AI Agreement Builder / Deliverable Prompt ] -->
-            <div class="hero-bottom-pill-bar">
-              <button type="button" class="btn-pill-add glass-circle-btn" id="btn-hero-attach" title="Attach delivery evidence or paste agreement">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-              <input type="text" class="hero-input-field" id="hero-ai-input" placeholder="Paste agreement text to extract milestones, or type instructions for AI assistant..." />
-              <button type="button" class="btn glass-pill-btn btn-sm" id="btn-hero-ai-submit">Submit</button>
-            </div>
-            <div id="hero-ai-toast-slot"></div>
-          </section>
-
-          <!-- ===============================================================
-               CARD B: Pending Approvals & Disputes (Top-Right Stack)
-               =============================================================== -->
-          <section class="bento-card bento-card-b" id="card-stack-actions">
-            <div class="micro-spec-label">ACTION CENTRE // STACK</div>
-
-            <div class="card-header-row flex-between">
-              <div class="title-pill-tag">Pending Approvals & Disputes</div>
-              <span class="badge badge-completed" id="action-centre-count">3 items</span>
-            </div>
-
-            <!-- 3 Stacked Cards (Matching Image 2 Wireframe with Left Rounded Tabs) -->
-            <div class="stacked-cards-container" id="action-centre-stack-list">
-              <!-- Stack 1 (Top / Front) -->
-              <div class="stacked-card card-depth-1 active-stack">
-                <div class="stack-left-tab tab-amber glass-circle-btn">
-                  <span>1</span>
-                </div>
-                <div class="stack-card-body">
-                  <div class="flex-between">
-                    <h4>Needs Client Approval</h4>
-                    <span class="badge badge-disputed">₹15,000</span>
-                  </div>
-                  <p>Stage 2: Frontend Dev completed by Aman. Payer approval requested.</p>
-                </div>
-              </div>
-
-              <!-- Stack 2 (Middle) -->
-              <div class="stacked-card card-depth-2">
-                <div class="stack-left-tab tab-blue glass-circle-btn">
-                  <span>2</span>
-                </div>
-                <div class="stack-card-body">
-                  <div class="flex-between">
-                    <h4>Milestone In Progress</h4>
-                    <span class="badge badge-pending">₹5,000</span>
-                  </div>
-                  <p>Stage 3: Testing & Delivery assigned to Aman. Awaiting completion.</p>
-                </div>
-              </div>
-
-              <!-- Stack 3 (Back) -->
-              <div class="stacked-card card-depth-3">
-                <div class="stack-left-tab tab-purple glass-circle-btn">
-                  <span>3</span>
-                </div>
-                <div class="stack-card-body">
-                  <div class="flex-between">
-                    <h4>Dispute Review</h4>
-                    <span class="badge badge-refunded">Arbiter</span>
-                  </div>
-                  <p>Arbiter Meera reviewing submitted delivery evidence for ruling.</p>
                 </div>
               </div>
             </div>
-          </section>
 
-          <!-- ===============================================================
-               CARD C: Overview & Arbiter Panel (Bottom-Center Hub)
-               =============================================================== -->
-          <section class="bento-card bento-card-c" id="card-hub-overview">
-            <div class="micro-spec-label">ESCROW VAULT // ENGINE</div>
+            <!-- Right Stat Badge Callout -->
+            <div class="floating-callout-badge right-badge">
+              <div class="callout-value">100%</div>
+              <div class="callout-label" id="active-milestone-waiting-text">Spec verified</div>
+            </div>
+          </div>
 
-            <div class="card-header-row flex-between">
-              <div class="title-pill-tag">Overview & Arbiter Panel</div>
-              <div class="reconcile-chip">
-                <span>Adds up:</span>
-                <span class="badge badge-success" id="dash-reconcile-badge">yes</span>
+          <!-- Bottom 3 Pill Chips Row (Matching 75m² / 30min / 80% pills) -->
+          <div class="bottom-metrics-row">
+            <div class="stat-pill-chip">
+              <span class="chip-num">3/5</span>
+              <span class="chip-lbl">Milestones</span>
+            </div>
+            <div class="stat-pill-chip">
+              <span class="chip-num">₹15,000</span>
+              <span class="chip-lbl">In Review</span>
+            </div>
+            <div class="stat-pill-chip">
+              <span class="chip-num">100%</span>
+              <span class="chip-lbl">Reconciled</span>
+            </div>
+          </div>
+
+          <!-- Stage Actions Area -->
+          <div class="milestone-inline-buttons" id="active-stage-buttons-area">
+            <button type="button" class="action-clean-pill btn-stage-action" data-action="done" data-stage="stg-2">Submit Proof</button>
+            <button type="button" class="action-clean-pill primary btn-stage-action" data-action="approve" data-stage="stg-2">Approve</button>
+            <button type="button" class="action-clean-pill danger btn-stage-action" data-action="dispute" data-stage="stg-2">Dispute</button>
+          </div>
+        </section>
+
+        <!-- -----------------------------------------------------------------
+             BOTTOM-MIDDLE CARD: Smart Arbiter (Matching Pendant Lamp Card)
+             ----------------------------------------------------------------- -->
+        <section class="bento-card bento-arbiter-lamp" id="card-hub-overview">
+          <!-- Top Row: Dropdown Title + Circle Button -->
+          <div class="card-header-clean flex-between">
+            <div class="dropdown-header-group">
+              <div class="dropdown-title-row">
+                <h3 class="dropdown-title">Smart Arbiter</h3>
+                <span class="dropdown-chevron-sm">▾</span>
+              </div>
+              <p class="dropdown-sub-caption">1 device(s) • Meera (Arbiter)</p>
+            </div>
+            <div class="circle-clean-indicator" title="Arbiter Active">
+              <span class="indicator-inner-dot"></span>
+            </div>
+          </div>
+
+          <!-- Center Visual: Glowing Radiant Lamp / AI Arbiter Sphere -->
+          <div class="lamp-graphic-container">
+            <div class="lamp-suspension-cord"></div>
+            <div class="lamp-socket"></div>
+            <div class="radiant-light-bulb" id="arbiter-orb-glow">
+              <div class="bulb-highlight"></div>
+            </div>
+            <div class="lamp-ambient-glow"></div>
+          </div>
+
+          <!-- Device Name + Toggle Switch -->
+          <div class="device-toggle-row flex-between">
+            <span class="device-caption">Smart Lamp</span>
+            <label class="clean-toggle-switch">
+              <input type="checkbox" checked id="toggle-smart-lamp" />
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+            </label>
+          </div>
+
+          <!-- Bottom Slider Capsule: Brightness / Decision Slider -->
+          <div class="capsule-slider-track">
+            <span class="slider-sun-icon">☼</span>
+            <div class="slider-fill-bar">
+              <div class="slider-handle"></div>
+            </div>
+            <span class="slider-percentage">70%</span>
+          </div>
+
+          <!-- Quick Arbiter Decision Bar -->
+          <div class="arbiter-quick-actions flex-between" id="action-matrix-container">
+            <button type="button" class="btn-arbiter-action btn-stage-action" data-action="pay_payee" data-stage="stg-2">Pay Payee</button>
+            <button type="button" class="btn-arbiter-action btn-stage-action" data-action="refund_payers" data-stage="stg-2">Refund</button>
+          </div>
+          <div class="refusal-slot" id="matrix-refusal-slot"></div>
+        </section>
+
+        <!-- -----------------------------------------------------------------
+             BOTTOM-RIGHT CARD: Payout & Audio (Matching Speakers Card)
+             ----------------------------------------------------------------- -->
+        <section class="bento-card bento-speaker-payout" id="card-payout-speaker">
+          <!-- Top Row: Speakers Title + Toggle -->
+          <div class="card-header-clean flex-between">
+            <div>
+              <h3 class="dropdown-title">Speakers</h3>
+              <p class="dropdown-sub-caption">Playing • Aman (Provider)</p>
+            </div>
+            <label class="clean-toggle-switch">
+              <input type="checkbox" checked id="toggle-speaker-payout" />
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+            </label>
+          </div>
+
+          <!-- Center Radial Gauge with User Profile Avatar -->
+          <div class="speaker-avatar-gauge-stage">
+            <div class="gauge-timestamp-row">
+              <span class="time-elapsed">0:34</span>
+              <span class="time-divider">/</span>
+              <span class="time-total">2:27</span>
+            </div>
+
+            <!-- Radial Progress Arc Ring with Photo in Center -->
+            <div class="radial-ring-container">
+              <svg class="radial-svg" width="130" height="130" viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="44"/>
+                <circle class="ring-progress" cx="50" cy="50" r="44"/>
+              </svg>
+              <div class="ring-avatar-face">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&h=160&fit=crop&crop=face" alt="Priya Sharma" />
               </div>
             </div>
 
-            <!-- Overview Balances Metric Row -->
-            <div class="overview-metrics-strip flex-between">
-              <div class="metric-item">
-                <span class="metric-lbl">Total Escrow</span>
-                <strong class="metric-val" id="dash-money-total">₹30,000</strong>
-              </div>
-              <div class="metric-divider"></div>
-              <div class="metric-item">
-                <span class="metric-lbl">Remaining</span>
-                <strong class="metric-val" id="metric-val-locked">₹20,000</strong>
-              </div>
-              <div class="metric-divider"></div>
-              <div class="metric-item">
-                <span class="metric-lbl">Released</span>
-                <strong class="metric-val text-emerald" id="metric-val-paidout">₹10,000</strong>
-              </div>
-              <div class="metric-divider"></div>
-              <div class="metric-item">
-                <span class="metric-lbl">Withdrawable</span>
-                <strong class="metric-val text-emerald" id="your-money-amount">₹0</strong>
-              </div>
+            <div class="speaker-amount-caption">
+              Withdrawable: <strong class="text-blue" id="your-money-amount">₹0</strong>
             </div>
+          </div>
 
-            <!-- 3x3 Action Buttons Grid (Provider, Client, Arbiter) -->
-            <div class="matrix-grid-3x3" id="action-matrix-container">
-              <!-- Column 1: Provider Actions -->
-              <button type="button" class="matrix-btn glass-pill-btn btn-stage-action" data-action="done" data-stage="stg-2" title="Provider submits deliverable proof">Submit Proof</button>
-              <button type="button" class="matrix-btn glass-pill-btn btn-stage-action" data-action="done" data-stage="stg-2" title="Provider marks milestone finished">Mark Done</button>
-              <button type="button" class="matrix-btn glass-pill-btn" id="btn-matrix-withdraw" title="Withdraw credited balance">Withdraw ₹</button>
+          <!-- Bottom Audio / Payout Control Bar (5 Icons Exact) -->
+          <div class="playback-controls-row flex-between">
+            <!-- Shuffle / Withdraw -->
+            <button type="button" class="control-icon-btn" id="btn-matrix-withdraw" title="Withdraw Funds">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+            </button>
 
-              <!-- Column 2: Client Actions -->
-              <button type="button" class="matrix-btn glass-pill-btn btn-primary-action btn-stage-action" data-action="approve" data-stage="stg-2" title="Client approves deliverable">Approve</button>
-              <button type="button" class="matrix-btn glass-pill-btn btn-danger-action btn-stage-action" data-action="dispute" data-stage="stg-2" title="Client disputes deliverable">Dispute</button>
-              <button type="button" class="matrix-btn glass-pill-btn" id="btn-matrix-deposit" title="Client deposits simulated UPI share">Deposit UPI</button>
+            <!-- Prev -->
+            <button type="button" class="control-icon-btn" id="btn-ctrl-prev" title="Previous Milestone">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>
+            </button>
 
-              <!-- Column 3: Arbiter Actions -->
-              <button type="button" class="matrix-btn glass-pill-btn btn-stage-action" data-action="pay_payee" data-stage="stg-2" title="Arbiter releases payment to payee">Pay Payee</button>
-              <button type="button" class="matrix-btn glass-pill-btn btn-stage-action" data-action="refund_payers" data-stage="stg-2" title="Arbiter refunds escrow to client">Refund Client</button>
-              <button type="button" class="matrix-btn glass-pill-btn" id="btn-matrix-ruling" title="Arbiter records dispute ruling">Record Ruling</button>
-            </div>
-            <div class="refusal-slot" id="matrix-refusal-slot"></div>
+            <!-- Play / Pause (Filled Center Button) -->
+            <button type="button" class="control-play-pause-btn btn-stage-action" data-action="approve" data-stage="stg-2" id="btn-ctrl-approve" title="Approve & Release Funds">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            </button>
 
-            <!-- Segmented Money Progress Bar (Bottom of Card C, matching Image 2) -->
-            <div class="segmented-progress-line-wrapper">
-              <div class="segmented-progress-bar" id="dash-money-bar">
-                <div class="segment-fill seg-locked" id="bar-seg-locked" style="width: 66.6%;">Locked: ₹20,000</div>
-                <div class="segment-fill seg-waiting" id="bar-seg-waiting" style="width: 0%;">Waiting: ₹0</div>
-                <div class="segment-fill seg-paid" id="bar-seg-paidout" style="width: 33.3%;">Paid: ₹10,000</div>
-              </div>
-            </div>
-          </section>
+            <!-- Next -->
+            <button type="button" class="control-icon-btn" id="btn-ctrl-next" title="Next Milestone">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
+            </button>
 
-          <!-- ===============================================================
-               CARD D: Evidence & Proof Vault (Bottom-Right Deck)
-               =============================================================== -->
-          <section class="bento-card bento-card-d" id="card-deck-vault">
-            <div class="micro-spec-label">PROOF VAULT // IMMUTABLE</div>
+            <!-- Cast / Deposit -->
+            <button type="button" class="control-icon-btn" id="btn-matrix-deposit" title="Deposit Simulated Funds">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
+            </button>
+          </div>
+        </section>
 
-            <div class="card-header-row flex-between">
-              <div class="title-pill-tag">Proof Vault & Evidence</div>
-              <div class="circle-count-badge glass-circle-btn" id="proof-docs-count">3</div>
-            </div>
-
-            <!-- Fanned Overlapping Document Cards (Matching Image 2 Wireframe Angle) -->
-            <div class="fanned-cards-deck" id="fanned-documents-deck">
-              <div class="fanned-card fan-card-1" data-doc="1" title="Click to view Figma Specification">
-                <div class="fanned-card-pill">Figma Spec</div>
-                <div class="fanned-card-title">design_tokens.fig</div>
-                <div class="fanned-card-meta">Milestone 1</div>
-              </div>
-
-              <div class="fanned-card fan-card-2" data-doc="2" title="Click to view GitHub Pull Request">
-                <div class="fanned-card-pill">GitHub PR</div>
-                <div class="fanned-card-title">PR #104 Merged</div>
-                <div class="fanned-card-meta">Milestone 2</div>
-              </div>
-
-              <div class="fanned-card fan-card-3" data-doc="3" title="Click to view Simulated UPI Receipt">
-                <div class="fanned-card-pill">UPI Receipt</div>
-                <div class="fanned-card-title">simulated_upi.pdf</div>
-                <div class="fanned-card-meta">Escrow Deposit</div>
-              </div>
-            </div>
-
-            <!-- Card D Footer -->
-            <div class="card-d-footer flex-between">
-              <button type="button" class="btn glass-pill-btn btn-sm" id="btn-upload-proof">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                Upload Evidence
-              </button>
-              <span class="vault-hash-code" id="proof-vault-hash">Hash: 0x8f4b2a...</span>
-            </div>
-          </section>
-
-        </div>
       </main>
 
     </div>
+  </div>
+
+  <!-- Hidden Compatibility Hooks for app.js -->
+  <div class="hidden">
+    <div id="dash-participants-meta"></div>
+    <div id="dash-phase-badge"></div>
+    <div id="action-centre-count"></div>
+    <div id="proof-vault-hash"></div>
+    <div id="bar-seg-locked"></div>
+    <div id="bar-seg-waiting"></div>
+    <div id="bar-seg-paidout"></div>
+    <select id="select-acting-as"></select>
+    <input type="checkbox" id="toggle-try-anything" />
+    <span id="proof-spec-hash"></span>
+    <span id="btn-matrix-ruling"></span>
   </div>
 
   <!-- =======================================================================
@@ -372,7 +468,6 @@
     <div class="modal-card max-w-750">
       <div class="modal-header flex-between">
         <div class="modal-title-wrap">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <h3>Agreed Deals & Escrows</h3>
         </div>
         <button type="button" class="btn-close" id="btn-close-deals-modal">×</button>
@@ -395,8 +490,8 @@
         </div>
       </div>
       <div class="modal-footer flex-between">
-        <button type="button" class="btn glass-pill-btn btn-primary btn-sm" id="btn-modal-new-deal">+ Create New Deal</button>
-        <button type="button" class="btn glass-pill-btn btn-secondary btn-sm" id="btn-done-deals-modal">Close</button>
+        <button type="button" class="btn-dark-pill-sm" id="btn-modal-new-deal">+ Create New Deal</button>
+        <button type="button" class="btn-clean-chip" id="btn-done-deals-modal">Close</button>
       </div>
     </div>
   </div>
@@ -408,7 +503,6 @@
     <div class="modal-card max-w-750">
       <div class="modal-header flex-between">
         <div class="modal-title-wrap">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           <h3>AI Agreement Builder</h3>
         </div>
         <button type="button" class="btn-close" id="btn-close-wizard-modal">×</button>
@@ -441,10 +535,10 @@
           <div class="sample-buttons-row mb-3">
             <span class="samples-label">Load sample:</span>
             <div class="sample-pills">
-              <button type="button" class="sample-btn glass-pill-btn" data-sample="flatmates">Flatmates</button>
-              <button type="button" class="sample-btn glass-pill-btn" data-sample="freelance">Freelance</button>
-              <button type="button" class="sample-btn glass-pill-btn" data-sample="construction">Construction</button>
-              <button type="button" class="sample-btn glass-pill-btn" data-sample="bonus">Company bonus</button>
+              <button type="button" class="sample-btn btn-clean-chip" data-sample="flatmates">Flatmates</button>
+              <button type="button" class="sample-btn btn-clean-chip" data-sample="freelance">Freelance</button>
+              <button type="button" class="sample-btn btn-clean-chip" data-sample="construction">Construction</button>
+              <button type="button" class="sample-btn btn-clean-chip" data-sample="bonus">Company bonus</button>
             </div>
           </div>
           <div class="form-group mb-3">
@@ -452,8 +546,8 @@
             <textarea id="describe-textarea" rows="4" placeholder="Example: Riya will pay Aman Rs 30,000 for a website: Rs 10,000 after design, Rs 15,000 after development and Rs 5,000 when good. Meera settles disputes."></textarea>
           </div>
           <div class="flex-between">
-            <span class="text-sm text-muted">AI parses milestones, payers, and ambiguous conditions.</span>
-            <button type="button" class="btn glass-pill-btn btn-primary" id="btn-check-deal">Check deal →</button>
+            <span class="text-sm text-dim">AI parses milestones, payers, and ambiguous conditions.</span>
+            <button type="button" class="btn-dark-pill-sm" id="btn-check-deal">Check deal →</button>
           </div>
           <div class="refusal-slot mt-2" id="describe-refusal"></div>
         </div>
@@ -483,7 +577,7 @@
                 <div>Shares Match: <span class="badge badge-success" id="review-shares-badge">yes</span></div>
               </div>
               <div class="mt-3">
-                <button type="button" class="btn glass-pill-btn btn-primary btn-block" id="btn-confirm-checklist" disabled>Confirm Checklist</button>
+                <button type="button" class="btn-dark-pill-sm btn-block" id="btn-confirm-checklist" disabled>Confirm Checklist</button>
                 <div class="button-explanation text-sm mt-1" id="confirm-disabled-reason"></div>
               </div>
             </div>
@@ -506,7 +600,7 @@
           </div>
           <div class="refusal-slot mt-2" id="agree-refusal"></div>
           <div class="flex-between mt-3">
-            <button type="button" class="btn glass-pill-btn btn-secondary btn-sm" id="btn-back-to-review">← Edit Terms</button>
+            <button type="button" class="btn-clean-chip btn-sm" id="btn-back-to-review">← Edit Terms</button>
             <div id="agree-ready-indicator" class="hidden">
               <span class="badge badge-success">All participants agreed!</span>
             </div>
@@ -516,8 +610,8 @@
         <div class="wizard-panel" id="wizard-step-lock">
           <div class="lock-status-card mb-3" id="lock-state-box">
             <h4 id="lock-card-title">Agreement Ready to Lock</h4>
-            <p id="lock-card-desc" class="text-muted text-sm">Locking deploys the Hardhat EVM vault contract.</p>
-            <button type="button" class="btn glass-pill-btn btn-primary mt-2" id="btn-lock-deal">Lock the deal</button>
+            <p id="lock-card-desc" class="text-dim text-sm">Locking deploys the Hardhat EVM vault contract.</p>
+            <button type="button" class="btn-dark-pill-sm mt-2" id="btn-lock-deal">Lock the deal</button>
           </div>
           <div class="refusal-slot" id="lock-refusal"></div>
           <div class="deposits-section hidden mt-3" id="lock-deposits-section">
@@ -527,7 +621,7 @@
           </div>
           <div class="mt-3 text-center hidden" id="all-deposited-banner">
             <span class="badge badge-success">All funds deposited! Deal is Active.</span>
-            <button type="button" class="btn glass-pill-btn btn-primary btn-block mt-2" id="btn-goto-dashboard">Go to Dashboard →</button>
+            <button type="button" class="btn-dark-pill-sm btn-block mt-2" id="btn-goto-dashboard">Go to Dashboard →</button>
           </div>
         </div>
       </div>
@@ -541,7 +635,6 @@
     <div class="modal-card max-w-750">
       <div class="modal-header flex-between">
         <div class="modal-title-wrap">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <h3>Attack Lab — Escrow Security Simulator</h3>
         </div>
         <button type="button" class="btn-close" id="btn-close-attack-modal">×</button>
@@ -550,7 +643,7 @@
         <div class="attack-cards-grid" id="attack-cards-container"></div>
       </div>
       <div class="modal-footer flex-end">
-        <button type="button" class="btn glass-pill-btn btn-secondary" id="btn-done-attack-modal">Close</button>
+        <button type="button" class="btn-clean-chip" id="btn-done-attack-modal">Close</button>
       </div>
     </div>
   </div>
@@ -562,14 +655,13 @@
     <div class="modal-card">
       <div class="modal-header flex-between">
         <div class="modal-title-wrap">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <h3 id="proof-modal-title">Proof Document Spec</h3>
         </div>
         <button type="button" class="btn-close" id="btn-close-proof-modal">×</button>
       </div>
       <div class="modal-body" id="proof-modal-body"></div>
       <div class="modal-footer flex-end gap-2" id="proof-modal-footer">
-        <button type="button" class="btn glass-pill-btn btn-secondary" id="btn-proof-modal-done">Close</button>
+        <button type="button" class="btn-clean-chip" id="btn-proof-modal-done">Close</button>
       </div>
     </div>
   </div>
@@ -581,7 +673,6 @@
     <div class="modal-card">
       <div class="modal-header flex-between">
         <div class="modal-title-wrap">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
           <h3>Technical Details</h3>
         </div>
         <button type="button" class="btn-close" id="btn-close-tech-modal">×</button>
@@ -591,30 +682,19 @@
           <span class="tech-label">Escrow Vault Contract</span>
           <div class="code-box flex-between">
             <code id="tech-vault-address">0x5FbDB2315678afecb367f032d93F642f64180aa3</code>
-            <button type="button" class="btn-copy" data-target="tech-vault-address">Copy</button>
+            <button type="button" class="btn-clean-chip btn-sm" id="btn-copy-vault">Copy</button>
           </div>
         </div>
         <div class="tech-item mt-3">
           <span class="tech-label">Agreement Fingerprint (Hash)</span>
           <div class="code-box flex-between">
             <code id="tech-agreement-hash">0x8f4b2ae4c9018f2bb734a6d10c5512b9</code>
-            <button type="button" class="btn-copy" data-target="tech-agreement-hash">Copy</button>
+            <button type="button" class="btn-clean-chip btn-sm" id="btn-copy-hash">Copy</button>
           </div>
-        </div>
-        <div class="tech-item mt-3">
-          <span class="tech-label">Execution Node</span>
-          <div class="tech-env-pill">
-            <span class="pulsing-dot-green"></span>
-            <span>Hardhat EVM Local Node (Solidity ^0.8.24)</span>
-          </div>
-        </div>
-        <div class="tech-item mt-3">
-          <span class="tech-label">Participant EVM Accounts</span>
-          <div class="accounts-list mt-1" id="tech-accounts-list"></div>
         </div>
       </div>
       <div class="modal-footer flex-end">
-        <button type="button" class="btn glass-pill-btn btn-secondary" id="btn-modal-done">Done</button>
+        <button type="button" class="btn-clean-chip" id="btn-modal-done">Done</button>
       </div>
     </div>
   </div>
