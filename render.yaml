@@ -1,14 +1,34 @@
-# Render blueprint: one free web service that runs the whole of Settl.
+# Render blueprint: Settl as two free web services built from this repository.
 #
-# It runs on the chain inside the server, so visitors need no wallet: they add
-# demo people and all money is pretend. The free plan sleeps when idle and
-# starts empty when it wakes, which suits a demonstration.
+#   settl       The real thing. It runs on the Sepolia test network: visitors connect
+#               MetaMask, sign with their own wallet, and every vault is a contract
+#               on a public chain. Test money only.
+#   settl-demo  The same product on the chain inside the server. No wallet is needed:
+#               visitors add demo people and all money is pretend. For anyone who
+#               wants to try a deal without setting up a wallet.
 #
-# For the Sepolia test network instead, change startCommand to:
-#   node server/src/index.js --testnet
+# The free plan sleeps when idle. When a service wakes it starts with no deals: on
+# Sepolia the vaults themselves stay on the chain, but the list of workspaces is
+# kept in a file that does not survive a restart.
 services:
   - type: web
     name: settl
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npx hardhat compile && npx vite build
+    startCommand: node server/src/index.js --testnet
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      # Paste the key in the Render dashboard. It is never stored in this file.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-3.5-flash-lite
+
+  - type: web
+    name: settl-demo
     runtime: node
     plan: free
     buildCommand: npm install --include=dev && npx hardhat compile && npx vite build
@@ -17,7 +37,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
-      # Paste the key in the Render dashboard. It is never stored in this file.
       - key: GEMINI_API_KEY
         sync: false
       - key: LLM_MODEL
