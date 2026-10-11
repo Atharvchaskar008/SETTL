@@ -9,8 +9,9 @@ This folder (`/web`) contains the complete frontend web application for Settl. T
 | File | Purpose |
 |---|---|
 | **[`index.html`](file:///d:/projects/settl/Vortexa-3.0/web/index.html)** | Semantic HTML structure for all 5 screens, modals, top navigation, and responsive layouts. |
-| **[`app.css`](file:///d:/projects/settl/Vortexa-3.0/web/app.css)** | Vanilla CSS design system: dark fintech theme, glassmorphism, state badge colors, 3-part money bar, inline refusal styling, and `<700px` mobile layout stack. |
+| **[`app.css`](file:///d:/projects/settl/Vortexa-3.0/web/app.css)** | Vanilla CSS design system: light blue bento theme, glassmorphism, state badge colors, and edge-to-edge full screen layout. |
 | **[`app.js`](file:///d:/projects/settl/Vortexa-3.0/web/app.js)** | Client application logic: API requests, Indian Rupee formatting (`₹2,00,000`), persona switching, "Try anything" toggle, step-by-step wizard, interactive phrase hover linking, and inline refusal placement. |
+| **[`SETTL_SYSTEM_GUIDE.md`](file:///d:/projects/settl/Vortexa-3.0/web/SETTL_SYSTEM_GUIDE.md)** | Complete architecture, workflow, tech stack, and working features guide. |
 
 ---
 
