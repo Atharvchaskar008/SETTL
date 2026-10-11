@@ -30,3 +30,9 @@ Each JSON file contains:
 ## How to Test
 1. Paste text from `samples/deals/NN-short-name.txt` into the deal checker.
 2. Compare the checker's output against `samples/deals/NN-short-name.expected.json`.
+
+## How to Check
+Validate formatting, schema, and sums across all sample deals:
+```
+node samples/check-format.mjs
+```
