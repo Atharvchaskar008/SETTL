@@ -10,6 +10,7 @@ Built for VORTEXA 3.0, problem **B-03 MilestoneVault: Adversarial Smart-Contract
 
 | | |
 |---|---|
+| **The app** | **https://settl-wus6.onrender.com/** (landing page first; its buttons open the dashboard at `/app/`) |
 | Smart contract on Sepolia | [`0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F`](https://sepolia.etherscan.io/address/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F) |
 | Its source, verified as an exact match | [Read it on Sourcify](https://repo.sourcify.dev/11155111/0x01712404aDd94cd235d3F3Ed2cA8cB180334E62F) |
 | A second vault, with a stake and a dispute | [`0x3890cC72EA90e3775a56Fcc8e7B07A32E2DA30c9`](https://sepolia.etherscan.io/address/0x3890cC72EA90e3775a56Fcc8e7B07A32E2DA30c9) |
@@ -600,7 +601,7 @@ With no key, the offline reader is used and everything else works the same.
 
 ## Deployment
 
-Settl deploys to [Render](https://render.com) as one web service, described in [render.yaml](render.yaml). On Render choose New, then Blueprint, pick this repository, and paste the model key when asked.
+Settl is deployed at **https://settl-wus6.onrender.com/**. It runs on [Render](https://render.com) as one web service, described in [render.yaml](render.yaml). On Render choose New, then Blueprint, pick this repository, and paste the model key when asked.
 
 | Setting | Value |
 |---|---|
