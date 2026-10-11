@@ -288,10 +288,10 @@ How it behaves:
 - **It works with a wallet or without one.** With a wallet, every signature and transaction comes from the wallet. Without one, on the local chain, you pick or add a demo person from the menu at the top right and the server acts for them.
 - **Once a deal is over, a settlement table** shows what each person paid in, received and ended up with, and whether it adds up. The figures come from the vault's own events.
 - **"Attacks" opens the attack lab**, which runs the four attacks and shows each step and its outcome.
+- **"How Settl works" in the footer** opens the page in [site/](site/) that explains the project, served at `/site`.
 
 **Attached documents.** A text file is used as it is, and works with the AI switched off. A PDF or a picture has its words copied out by the model, so it needs the model; with the AI off it is refused with that reason. Either way the result is only more text for the reader: every stage must still quote it, the organiser sees the copied-out words under Agreement, and a person must confirm. A fingerprint of the file itself goes into the agreement fingerprint stored in the vault. A sample is in [server/fixtures/06-photography-agreement.pdf](server/fixtures/06-photography-agreement.pdf). Limits: 4 MB and 20,000 characters.
 
-The earlier dashboard in [web/](web/) is still served at `/old`, connected through [server/public/settl-bridge.js](server/public/settl-bridge.js).
 
 ## Wallets and real users
 
@@ -385,12 +385,10 @@ server/
   src/deals.js                deal routes
   src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
-  public/settl-bridge.js      connects the earlier dashboard in web/ to this server
   fixtures/                   five sample deals
   test/                       checker tests, API tests and wallet tests
 app/                          the dashboard, served at /
   index.html, settl.css, settl.js
-web/                          the earlier dashboard, served at /old
 wallet/index.html             the wallet console, served at /wallet
 scripts/demo.js               end-to-end run of five deals and four attacks
 scripts/score.js              scores the deal checker against the sample deals
@@ -490,7 +488,6 @@ With no key, the offline reader is used and everything else works the same.
 | Dashboard (`/`) | Done. Run through the real page in a headless browser: a plain deal with a dispute, a deal with a stake where the payee leaves, the agreement tab, the attack lab, and the whole wallet path with three keys. Also used by hand with MetaMask on Sepolia |
 | Public test network (`npm run testnet`) | One plain deal run end to end on Sepolia, and the vault's source verified. The stake, dispute, cancel and leave paths have not been run there |
 | Attack lab on a public network | Written. Not yet run |
-| Earlier dashboard (`/old`) | Was run end to end in a headless browser when it was served at `/`. Not re-checked since it moved |
 | Wallet console page (`/wallet`) | Written before the organiser's wallet began creating the vault. Its Lock button has not been updated for that; use the dashboard |
 
 ## Limits

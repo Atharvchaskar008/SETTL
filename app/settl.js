@@ -459,7 +459,7 @@
     $("foot").replaceChildren(
       h("span", {}, `Test money only · ₹1,000 = ${coin(1000)}`),
       h("span", { class: "space" }),
-      h("a", { href: "/old" }, "Old dashboard")
+      h("a", { href: "/site/" }, "How Settl works")
     );
 
     const items = [];

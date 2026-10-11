@@ -1,4 +1,3 @@
-const fs = require("node:fs");
 const path = require("node:path");
 const express = require("express");
 const hre = require("hardhat");
@@ -40,21 +39,8 @@ async function createApp({ env = process.env, storePath } = {}) {
   const auth = createAuth({ store });
   app.use(auth.identify);
 
-  // The dashboard is served from app/. The earlier dashboard in web/ stays available
-  // at /old, served with one extra script: the bridge that connects its screens to
-  // this server. The files in web/ themselves are left untouched.
+  // The dashboard is served from app/, and the page that explains the project from site/.
   app.use(express.static(path.join(__dirname, "../../app")));
-  app.get(["/old", "/old/", "/old/index.html"], (request, response, next) => {
-    fs.readFile(path.join(__dirname, "../../web/index.html"), "utf8", (error, html) => {
-      if (error) return next();
-      response.type("html").send(html.replace("</body>", '  <script src="/settl-bridge.js"></script>\n</body>'));
-    });
-  });
-  app.get("/settl-bridge.js", (request, response) => {
-    response.sendFile(path.join(__dirname, "../public/settl-bridge.js"));
-  });
-  app.use(express.static(path.join(__dirname, "../../web")));
-  app.use("/old", express.static(path.join(__dirname, "../../web")));
   app.use("/site", express.static(path.join(__dirname, "../../site")));
   // The landing page, once built with `npm run build`. Its buttons open the dashboard at /.
   app.use("/landing", express.static(path.join(__dirname, "../../dist")));
