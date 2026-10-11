@@ -677,10 +677,8 @@
           h(
             "div",
             { class: "profile-hero-name-row" },
-            h("h3", { class: "profile-hero-name" }, "No Active Persona"),
-            h("span", { class: "tag wait" }, "Guest")
-          ),
-          h("p", { class: "profile-hero-desc" }, "Select one of the simulated participants below to create deals, review milestones, sign, fund, or resolve disputes as them.")
+            h("h3", { class: "profile-hero-name" }, "No Active Persona")
+          )
         )
       );
     }
