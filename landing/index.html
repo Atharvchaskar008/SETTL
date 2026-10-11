@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SETTLE - Deal Making Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 80px;
+        }
+
+        html, body {
+            overflow-x: clip;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #00002A;
+        }
+
+        #root {
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        section[id], div[id] {
+            scroll-margin-top: 80px;
+        }
+
+        @keyframes targetHighlight {
+            0% {
+                box-shadow: 0 0 0 rgba(78, 106, 156, 0);
+            }
+            30% {
+                box-shadow: 0 0 45px rgba(144, 176, 199, 0.35);
+            }
+            100% {
+                box-shadow: 0 0 0 rgba(78, 106, 156, 0);
+            }
+        }
+
+        .section-scroll-highlight {
+            animation: targetHighlight 1.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Vite entry point -->
+    <script type="module" src="/js/index.jsx"></script>
+</body>
+</html>
