@@ -1,5 +1,5 @@
 /**
- * MilestoneVault — Frontend Client Application
+ * Settl — Frontend Client Application
  * Implements strict design principles, Indian Rupee formatting,
  * inline refusals, "Acting as" switching, and "Try anything" mode.
  */

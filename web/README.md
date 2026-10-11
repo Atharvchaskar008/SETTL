@@ -1,6 +1,6 @@
-# MilestoneVault — Frontend Dashboard Guide for Collaborators
+# Settl — Frontend Dashboard Guide for Collaborators
 
-This folder (`/web`) contains the complete frontend web application for MilestoneVault. The backend server already enforces every business rule and returns plain-language responses or HTTP 409 refusals.
+This folder (`/web`) contains the complete frontend web application for Settl. The backend server already enforces every business rule and returns plain-language responses or HTTP 409 refusals.
 
 ---
 
