@@ -35,18 +35,28 @@ contract MilestoneVault is ReentrancyGuard {
     bytes32 public immutable agreementHash;
     uint256 public immutable totalAmount;
 
+    /// @notice What each payee must put in before the deal starts. Zero means no stake.
+    ///         A payee gets it back when the deal closes.
+    uint256 public immutable stakeAmount;
+
     address[] public payers;
     mapping(address => uint256) public shareOf;
     Stage[] public stages;
+    /// @notice Each payee once, however many stages they have.
+    address[] public payees;
+    mapping(address => bool) public isPayee;
 
     Phase public phase;
 
     mapping(address => bool) public hasDeposited;
     uint256 public depositCount;
+    mapping(address => bool) public hasStaked;
+    uint256 public stakeCount;
+    mapping(address => bool) public hasLeft;
     mapping(uint256 => mapping(address => bool)) public hasApproved;
     uint256 public settledCount;
 
-    // Accounting. Every wei in the vault is either locked in a stage or owed to someone.
+    // Accounting. Every wei in the vault is either locked (in a stage or a stake) or owed to someone.
     uint256 public totalDeposited;
     uint256 public totalLocked;
     uint256 public totalOwed;
@@ -66,6 +76,10 @@ contract MilestoneVault is ReentrancyGuard {
     event RefundShare(uint256 indexed index, address indexed payer, uint256 amount);
     event Withdrawn(address indexed to, uint256 amount);
     event Closed();
+    event Staked(address indexed payee, uint256 amount);
+    event StakeReturned(address indexed payee, uint256 amount);
+    event Left(address indexed payee, uint256 stagesAbandoned);
+    event StakeForfeited(address indexed payee, address indexed payer, uint256 amount);
 
     error NoPayers();
     error NoStages();
@@ -87,6 +101,10 @@ contract MilestoneVault is ReentrancyGuard {
     error NotJudge();
     error NothingOwed();
     error TransferFailed();
+    error StakeNotRequired();
+    error AlreadyStaked();
+    error AlreadyLeft();
+    error NothingToLeave();
 
     modifier onlyPayer() {
         if (shareOf[msg.sender] == 0) revert NotPayer();
@@ -104,7 +122,8 @@ contract MilestoneVault is ReentrancyGuard {
         address judge_,
         address[] memory payees_,
         uint256[] memory amounts_,
-        bytes32 agreementHash_
+        bytes32 agreementHash_,
+        uint256 stakeAmount_
     ) {
         if (payers_.length == 0) revert NoPayers();
         if (payees_.length == 0) revert NoStages();
@@ -134,6 +153,10 @@ contract MilestoneVault is ReentrancyGuard {
 
             stages.push(Stage({amount: amounts_[i], payee: payee, state: State.Pending, approvals: 0}));
             stageTotal += amounts_[i];
+            if (!isPayee[payee]) {
+                isPayee[payee] = true;
+                payees.push(payee);
+            }
         }
 
         if (shareTotal != stageTotal) revert TotalsDiffer(shareTotal, stageTotal);
@@ -141,6 +164,7 @@ contract MilestoneVault is ReentrancyGuard {
         judge = judge_;
         agreementHash = agreementHash_;
         totalAmount = stageTotal;
+        stakeAmount = stakeAmount_;
     }
 
     /// @notice A payer puts in exactly their share, once.
@@ -156,14 +180,66 @@ contract MilestoneVault is ReentrancyGuard {
         totalLocked += msg.value;
         emit Deposited(msg.sender, msg.value);
 
-        if (depositCount == payers.length) {
+        _activateIfReady();
+    }
+
+    /// @notice A payee puts in the stake, once, before the deal starts.
+    function stake() external payable {
+        if (!isPayee[msg.sender]) revert NotPayee();
+        if (phase != Phase.Funding) revert WrongPhase(phase);
+        if (stakeAmount == 0) revert StakeNotRequired();
+        if (hasStaked[msg.sender]) revert AlreadyStaked();
+        if (msg.value != stakeAmount) revert WrongDeposit(stakeAmount, msg.value);
+
+        hasStaked[msg.sender] = true;
+        stakeCount += 1;
+        totalDeposited += msg.value;
+        totalLocked += msg.value;
+        emit Staked(msg.sender, msg.value);
+
+        _activateIfReady();
+    }
+
+    /// @notice A payee walks away from a deal that has started. Their unsettled
+    ///         stages are refunded to the payers, and their stake goes to the payers too.
+    function leave() external {
+        if (!isPayee[msg.sender]) revert NotPayee();
+        if (phase != Phase.Active) revert WrongPhase(phase);
+        if (stakeAmount == 0) revert StakeNotRequired();
+        if (hasLeft[msg.sender]) revert AlreadyLeft();
+
+        // Marked first, so that if the last refund closes the deal the stake is not handed back.
+        hasLeft[msg.sender] = true;
+        uint256 abandoned;
+        for (uint256 i = 0; i < stages.length; i++) {
+            Stage storage stage = stages[i];
+            if (stage.payee == msg.sender && stage.state != State.Released && stage.state != State.Refunded) {
+                abandoned += 1;
+                _refund(i, stage);
+            }
+        }
+        // A payee whose stages are all settled has nothing to walk away from.
+        if (abandoned == 0) revert NothingToLeave();
+        emit Left(msg.sender, abandoned);
+
+        // The stake goes to the people who were let down, never to the judge.
+        uint256[] memory parts = _splitAmongPayers(stakeAmount);
+        for (uint256 i = 0; i < parts.length; i++) {
+            emit StakeForfeited(msg.sender, payers[i], parts[i]);
+        }
+    }
+
+    /// @dev The deal starts when every payer has paid and, if a stake is set,
+    ///      every payee has put theirs in.
+    function _activateIfReady() private {
+        if (depositCount == payers.length && (stakeAmount == 0 || stakeCount == payees.length)) {
             phase = Phase.Active;
             emit Activated(totalDeposited);
         }
     }
 
-    /// @notice Before every payer has paid, any payer may call the deal off.
-    ///         Deposits already made are credited back to the payers who made them.
+    /// @notice Before the deal starts, any payer may call it off. Deposits and
+    ///         stakes already made are credited back to the people who made them.
     function cancel() external onlyPayer {
         if (phase != Phase.Funding) revert WrongPhase(phase);
 
@@ -175,6 +251,7 @@ contract MilestoneVault is ReentrancyGuard {
                 emit DepositReturned(payer, shareOf[payer]);
             }
         }
+        _returnStakes();
         emit Cancelled(msg.sender);
     }
 
@@ -254,20 +331,29 @@ contract MilestoneVault is ReentrancyGuard {
     function _refund(uint256 index, Stage storage stage) private {
         stage.state = State.Refunded;
 
-        uint256 remaining = stage.amount;
-        uint256 last = payers.length - 1;
-        for (uint256 i = 0; i < last; i++) {
-            address payer = payers[i];
-            uint256 part = (stage.amount * shareOf[payer]) / totalAmount;
-            remaining -= part;
-            _credit(payer, part);
-            emit RefundShare(index, payer, part);
+        uint256[] memory parts = _splitAmongPayers(stage.amount);
+        for (uint256 i = 0; i < parts.length; i++) {
+            emit RefundShare(index, payers[i], parts[i]);
         }
-        _credit(payers[last], remaining);
-        emit RefundShare(index, payers[last], remaining);
 
         emit Refunded(index, stage.amount);
         _settle();
+    }
+
+    /// @dev Credits `amount` to the payers in proportion to their shares and
+    ///      returns each payer's part. Division rounds down, so the last payer
+    ///      takes whatever is left and the parts always add up to `amount`.
+    function _splitAmongPayers(uint256 amount) private returns (uint256[] memory parts) {
+        parts = new uint256[](payers.length);
+        uint256 remaining = amount;
+        uint256 last = payers.length - 1;
+        for (uint256 i = 0; i < last; i++) {
+            parts[i] = (amount * shareOf[payers[i]]) / totalAmount;
+            remaining -= parts[i];
+            _credit(payers[i], parts[i]);
+        }
+        parts[last] = remaining;
+        _credit(payers[last], remaining);
     }
 
     /// @dev Settles a stage in the payee's favour. The state changes before any credit.
@@ -284,6 +370,18 @@ contract MilestoneVault is ReentrancyGuard {
         if (settledCount == stages.length) {
             phase = Phase.Closed;
             emit Closed();
+            _returnStakes();
+        }
+    }
+
+    /// @dev Credits each stake back to the payee who put it in, unless they left.
+    function _returnStakes() private {
+        for (uint256 i = 0; i < payees.length; i++) {
+            address payee = payees[i];
+            if (hasStaked[payee] && !hasLeft[payee]) {
+                _credit(payee, stakeAmount);
+                emit StakeReturned(payee, stakeAmount);
+            }
         }
     }
 
@@ -308,6 +406,10 @@ contract MilestoneVault is ReentrancyGuard {
 
     function getPayers() external view returns (address[] memory) {
         return payers;
+    }
+
+    function getPayees() external view returns (address[] memory) {
+        return payees;
     }
 
     function getStages() external view returns (Stage[] memory) {

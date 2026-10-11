@@ -13,7 +13,7 @@ describe("MilestoneVault setup", function () {
   // Deploys with raw arrays so each check can be broken on its own.
   function deployRaw(Vault, overrides, defaults) {
     const args = { ...defaults, ...overrides };
-    return Vault.deploy(args.payers, args.shares, args.judge, args.payees, args.amounts, AGREEMENT_HASH);
+    return Vault.deploy(args.payers, args.shares, args.judge, args.payees, args.amounts, AGREEMENT_HASH, 0n);
   }
 
   async function validArgs() {

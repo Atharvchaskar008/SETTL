@@ -16,8 +16,9 @@ contract WeakVault is MilestoneVault {
         address judge_,
         address[] memory payees_,
         uint256[] memory amounts_,
-        bytes32 agreementHash_
-    ) MilestoneVault(payers_, shares_, judge_, payees_, amounts_, agreementHash_) {}
+        bytes32 agreementHash_,
+        uint256 stakeAmount_
+    ) MilestoneVault(payers_, shares_, judge_, payees_, amounts_, agreementHash_, stakeAmount_) {}
 
     function withdraw() external override {
         uint256 amount = owed[msg.sender];

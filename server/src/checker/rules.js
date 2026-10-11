@@ -10,6 +10,7 @@
 //   "... ₹X after <condition>, ₹Y at ..."    several stages in one sentence
 //   "Each of <names> is paid ₹X when ..."    one stage per person
 //   "... ₹X every month for N months ..."    one stage per month
+//   "... a stake of ₹X ..."                  what each payee stakes before the start
 //   "<name> settles any dispute"             the judge
 
 const { emptyChecklist } = require("./validate");
@@ -223,7 +224,18 @@ function readByRules(text) {
     "i"
   );
 
+  const stakePattern = new RegExp(`\\bstakes?\\s+(?:of\\s+)?(${AMOUNT})`, "i");
+
   for (const sentence of sentences) {
+    // "... puts down a stake of ₹5,000" sets what each payee stakes before the start.
+    const staked = sentence.match(stakePattern);
+    if (staked) {
+      const amount = parseAmount(staked[1]);
+      if (Number.isNaN(amount)) unclear("The stake is not in whole rupees", "What is the exact stake in rupees?", sentence);
+      else checklist.stake = amount;
+      continue;
+    }
+
     const judge = judgePatterns.map((pattern) => sentence.match(pattern)).find(Boolean);
     if (judge && !NOT_A_NAME.has(judge[1].split(/\s+/)[0])) {
       checklist.judge.name = judge[1].trim();

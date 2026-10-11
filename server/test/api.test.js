@@ -327,6 +327,86 @@ describe("a deal shared by three payers", () => {
   });
 });
 
+describe("a deal with a payee stake", () => {
+  const KITCHEN = { text: fixture("05-kitchen-stake.txt"), organiser: "Sunita", people: ["Sunita", "Gopal", "Hema"] };
+  let api;
+  before(async () => {
+    api = await startApi();
+  });
+  after(() => api.close());
+
+  test("starts only after the payee stakes, and returns the stake at the close", async () => {
+    const id = await agreedDeal(api, KITCHEN);
+    const act = (route, body) => api.post(`/deals/${id}${route}`, body);
+    const locked = await act("/lock", { person: "Sunita" });
+    assert.equal(locked.body.deal.stake, 5000);
+
+    assert.equal((await act("/deposit", { person: "Sunita" })).body.deal.phase, "Funding");
+    assert.equal((await act("/stages/1/complete", { person: "Gopal" })).body.rule, "WrongPhase");
+    assert.equal((await act("/stake", { person: "Sunita" })).body.rule, "NotPayee");
+
+    const staked = await act("/stake", { person: "Gopal" });
+    assert.equal(staked.body.deal.phase, "Active");
+    assert.equal(staked.body.deal.money.locked, 55000);
+    assert.equal(staked.body.deal.people.find((person) => person.name === "Gopal").staked, true);
+    assert.equal((await act("/stake", { person: "Gopal" })).body.rule, "WrongPhase");
+
+    for (const stage of [1, 2]) {
+      await act(`/stages/${stage}/complete`, { person: "Gopal" });
+      await act(`/stages/${stage}/approve`, { person: "Sunita" });
+    }
+    assert.equal((await act("/leave", { person: "Gopal" })).body.rule, "WrongPhase");
+    const paid = await act("/withdraw", { person: "Gopal" });
+    assert.equal(paid.body.deal.money.paidOut, 55000);
+
+    const { summary } = (await api.get(`/deals/${id}/summary`)).body;
+    const gopal = summary.people.find((person) => person.name === "Gopal");
+    assert.deepEqual([gopal.earned, gopal.staked, gopal.stakeBack, gopal.stakeLost, gopal.withdrawn], [50000, 5000, 5000, 0, 55000]);
+    assert.equal(summary.addsUp, true);
+  });
+
+  test("gives the stake to the payer when the payee walks away", async () => {
+    const id = await agreedDeal(api, KITCHEN);
+    const act = (route, body) => api.post(`/deals/${id}${route}`, body);
+    await act("/lock", { person: "Sunita" });
+    await act("/deposit", { person: "Sunita" });
+    await act("/stake", { person: "Gopal" });
+    await act("/stages/1/complete", { person: "Gopal" });
+    await act("/stages/1/approve", { person: "Sunita" });
+
+    assert.equal((await act("/leave", { person: "Sunita" })).body.rule, "NotPayee");
+    const left = await act("/leave", { person: "Gopal" });
+    assert.equal(left.status, 200);
+    assert.equal(left.body.deal.phase, "Closed");
+    assert.equal(left.body.deal.stages[1].state, "Refunded");
+    assert.equal(left.body.deal.people.find((person) => person.name === "Gopal").left, true);
+    assert.equal(left.body.deal.people.find((person) => person.name === "Sunita").canWithdraw, 35000);
+    assert.equal(left.body.deal.people.find((person) => person.name === "Gopal").canWithdraw, 20000);
+    assert.equal((await act("/leave", { person: "Gopal" })).body.rule, "WrongPhase");
+
+    await act("/withdraw", { person: "Sunita" });
+    await act("/withdraw", { person: "Gopal" });
+    const { summary } = (await api.get(`/deals/${id}/summary`)).body;
+    const figures = Object.fromEntries(summary.people.map((person) => [person.name, person]));
+    assert.equal(figures.Gopal.stakeLost, 5000);
+    assert.equal(figures.Gopal.withdrawn, 20000);
+    assert.equal(figures.Sunita.fromStakes, 5000);
+    assert.equal(figures.Sunita.withdrawn, 35000);
+    assert.equal(summary.totals.stakesForfeited, 5000);
+    assert.equal(summary.totals.stillInVault, 0);
+    assert.equal(summary.addsUp, true);
+  });
+
+  test("a deal without a stake has no stake or leave step", async () => {
+    const id = await agreedDeal(api, { ...FREELANCE, people: ["Riya", "Aman", "Meera"] });
+    const act = (route, body) => api.post(`/deals/${id}${route}`, body);
+    await act("/lock", { person: "Riya" });
+    assert.equal((await act("/stake", { person: "Aman" })).body.rule, "StakeNotRequired");
+    await act("/deposit", { person: "Riya" });
+    assert.equal((await act("/leave", { person: "Aman" })).body.rule, "StakeNotRequired");
+  });
+});
+
 describe("attack lab", () => {
   let api;
   before(async () => {

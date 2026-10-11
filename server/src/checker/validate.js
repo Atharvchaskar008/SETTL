@@ -7,7 +7,8 @@
 //   judge:   { name },
 //   stages:  [{ title, payee, amount, condition, source }],
 //   unclear: [{ issue, question, source }],
-//   total:   number
+//   total:   number,
+//   stake:   number   what each payee puts in before the start; 0 for none
 // }
 //
 // Amounts are whole rupees.
@@ -18,7 +19,7 @@ const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** An empty checklist in the right shape, so readers always return the same keys. */
 function emptyChecklist() {
-  return { title: "", payers: [], judge: { name: "" }, stages: [], unclear: [], total: 0 };
+  return { title: "", payers: [], judge: { name: "" }, stages: [], unclear: [], total: 0, stake: 0 };
 }
 
 /** Every person named in the checklist, in a stable order and without repeats. */
@@ -96,6 +97,9 @@ function validate(checklist, text, people) {
   }
   if (checklist.total !== stageTotal) {
     problem("total", `The stated total is ₹${checklist.total} but the stages add up to ₹${stageTotal}.`);
+  }
+  if (checklist.stake !== undefined && !(Number.isInteger(checklist.stake) && checklist.stake >= 0)) {
+    problem("stake", "The stake must be a whole number of rupees, or zero for no stake.");
   }
 
   if (Array.isArray(people)) {

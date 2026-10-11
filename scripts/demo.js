@@ -69,6 +69,7 @@ function showChecklist(deal) {
     note(`             ${index + 1}. ${stage.payee}  ${rupees(stage.amount)}  when ${stage.condition}`);
   }
   if (checklist.stages.length > 4) note(`             ... and ${checklist.stages.length - 4} more`);
+  if (checklist.stake > 0) note(`  Stake      ${rupees(checklist.stake)} from each payee, lost by walking away`);
   note(`  Unclear    ${checklist.unclear.length === 0 ? "nothing" : checklist.unclear.map((item) => item.issue).join("; ")}`);
 }
 
@@ -89,6 +90,9 @@ async function showSummary(api, id) {
       person.paidIn && `paid in ${rupees(person.paidIn)}`,
       person.earned && `earned ${rupees(person.earned)}`,
       person.refunded && `got back ${rupees(person.refunded)}`,
+      person.stakeBack && `stake of ${rupees(person.stakeBack)} returned`,
+      person.stakeLost && `lost a stake of ${rupees(person.stakeLost)}`,
+      person.fromStakes && `received ${rupees(person.fromStakes)} from a forfeited stake`,
       `withdrew ${rupees(person.withdrawn)}`,
     ].filter(Boolean);
     note(`             ${person.name.padEnd(20)} ${parts.join(", ")}`);
@@ -97,6 +101,12 @@ async function showSummary(api, id) {
     `             Deposited ${rupees(summary.totals.deposited)} = paid to payees ${rupees(summary.totals.paidToPayees)} + ` +
       `returned to payers ${rupees(summary.totals.returnedToPayers)}. Adds up: ${summary.addsUp ? "yes" : "NO"}`
   );
+  if (summary.totals.staked > 0) {
+    note(
+      `             Stakes ${rupees(summary.totals.staked)} = returned ${rupees(summary.totals.stakesReturned)} + ` +
+        `forfeited to payers ${rupees(summary.totals.stakesForfeited)}`
+    );
+  }
   check(summary.addsUp, "the settlement does not add up.");
   check(summary.finished, "the deal is not finished.");
   check(summary.totals.stillInVault === 0, "money was left in the vault.");
@@ -259,6 +269,37 @@ async function bonusDeal(api) {
   );
 }
 
+async function stakeDeal(api) {
+  heading("DEAL: Kitchen retiling with a stake (the payee walks away)");
+  const { id, act } = await setUp(api, {
+    text: fixture("05-kitchen-stake.txt"),
+    organiser: "Sunita",
+    people: ["Sunita", "Gopal", "Hema"],
+  });
+
+  await step("Sunita deposits her share", act("/deposit", { person: "Sunita" }));
+  await step("Gopal marks stage 1 done before staking", act("/stages/1/complete", { person: "Gopal" }), "refused");
+  await step("Sunita tries to put in the stake for him", act("/stake", { person: "Sunita" }), "refused");
+  const started = await step("Gopal puts in his stake", act("/stake", { person: "Gopal" }));
+  check(started.deal.phase === "Active", "the deal should start once the stake is in.");
+  showMoney(started.deal);
+
+  await step("Gopal marks stage 1 done", act("/stages/1/complete", { person: "Gopal" }));
+  await step("Sunita approves stage 1", act("/stages/1/approve", { person: "Sunita" }));
+  await step("Hema, the judge, tries to remove Gopal", act("/leave", { person: "Hema" }), "refused");
+  const left = await step("Gopal walks away before stage 2", act("/leave", { person: "Gopal" }));
+  check(left.deal.stages[1].state === "Refunded", "the abandoned stage should be refunded.");
+  await step("Gopal tries to leave a second time", act("/leave", { person: "Gopal" }), "refused");
+
+  await step("Gopal withdraws what he earned", act("/withdraw", { person: "Gopal" }));
+  showMoney((await step("Sunita withdraws her refund and the stake", act("/withdraw", { person: "Sunita" }))).deal);
+
+  const summary = await showSummary(api, id);
+  const withdrawn = Object.fromEntries(summary.people.map((person) => [person.name, person.withdrawn]));
+  check(withdrawn.Gopal === 20000, "Gopal should keep only the ₹20,000 he earned.");
+  check(withdrawn.Sunita === 35000, "Sunita should get back ₹30,000 plus the ₹5,000 stake.");
+}
+
 async function attackLab(api) {
   heading("ATTACK LAB: four attempts to cheat a fresh vault");
   const { attacks } = (await api.get("/attacks")).body;
@@ -308,13 +349,14 @@ async function main() {
   const api = await startApi({ ...process.env, CHECKER_MODE: "rules" });
   note("SETTL END-TO-END DEMO");
   note("All funds are simulated. The chain runs in memory inside this process.");
-  note("The four deals use the offline reader, so this run is the same every time.");
+  note("The deals use the offline reader, so this run is the same every time.");
 
   try {
     await freelanceDeal(api);
     await flatmatesDeal(api);
     await constructionDeal(api);
     await bonusDeal(api);
+    await stakeDeal(api);
     await attackLab(api);
   } finally {
     api.close();

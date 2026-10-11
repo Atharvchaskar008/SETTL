@@ -12,9 +12,10 @@ const State = { Pending: 0, Completed: 1, Disputed: 2, Released: 3, Refunded: 4 
 
 /**
  * Deploys a vault. `payers` is a list of [signer, share] pairs and `stages`
- * a list of [payee signer or contract, amount] pairs.
+ * a list of [payee signer or contract, amount] pairs. `stake` is what each
+ * payee must put in before the deal starts; zero means no stake.
  */
-async function deployVault({ payers, judge, stages, contract = "MilestoneVault", hash = AGREEMENT_HASH }) {
+async function deployVault({ payers, judge, stages, stake = 0n, contract = "MilestoneVault", hash = AGREEMENT_HASH }) {
   const Vault = await ethers.getContractFactory(contract);
   const addressOf = (party) => party.target ?? party.address;
   return Vault.deploy(
@@ -23,7 +24,8 @@ async function deployVault({ payers, judge, stages, contract = "MilestoneVault",
     addressOf(judge),
     stages.map(([payee]) => addressOf(payee)),
     stages.map(([, amount]) => amount),
-    hash
+    hash,
+    stake
   );
 }
 

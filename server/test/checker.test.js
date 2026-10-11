@@ -76,6 +76,17 @@ describe("offline reader on the sample deals", () => {
     assert.ok(checklist.stages.every((stage) => stage.amount === 1200));
   });
 
+  test("reads a stake when the deal asks for one, and none otherwise", () => {
+    const text = fixture("05-kitchen-stake.txt");
+    const checklist = readByRules(text);
+    assert.equal(checklist.stake, 5000);
+    assert.equal(checklist.total, 50000);
+    assert.deepEqual(checklist.unclear, []);
+    assert.deepEqual(validate(checklist, text, membersOf(checklist)), []);
+
+    assert.equal(readByRules(fixture("02-freelance-website.txt")).stake, 0);
+  });
+
   test("a shared payment becomes one stage per person", () => {
     const checklist = readByRules(fixture("04-company-bonus.txt"));
     const perPerson = (name) => checklist.stages.filter((stage) => stage.payee === name).map((stage) => stage.amount);
@@ -175,6 +186,14 @@ describe("checklist rules", () => {
     const checklist = clean();
     checklist.unclear.push({ issue: "Launch date", question: "When is launch?", source: "" });
     assert.deepEqual(codes(checklist), ["unclear"]);
+  });
+
+  test("refuses a stake that is negative or not whole rupees", () => {
+    for (const stake of [-1, 2500.5, "5000"]) {
+      const checklist = clean();
+      checklist.stake = stake;
+      assert.deepEqual(codes(checklist), ["stake"]);
+    }
   });
 
   test("refuses missing payees, zero amounts and fractions of a rupee", () => {

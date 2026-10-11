@@ -18,7 +18,7 @@ const PHASES = ["Funding", "Active", "Cancelled", "Closed"];
 const STATES = ["Pending", "Completed", "Disputed", "Released", "Refunded"];
 
 const PHASE_REASON = [
-  "The deal is still waiting for deposits, so this step is not allowed yet.",
+  "The deal has not started yet: it is still waiting for deposits or stakes.",
   "The deal has already started, so this step is no longer allowed.",
   "The deal was cancelled, so nothing more can happen in it.",
   "The deal is closed: every stage is already settled.",
@@ -34,7 +34,10 @@ const STATE_REASON = [
 // One plain-language reason per contract error.
 const REASONS = {
   NotPayer: () => "Only a payer in this deal can do that.",
-  NotPayee: () => "Only the person assigned to this stage can mark it done.",
+  // The contract uses this one error for three actions; the action says which sentence fits.
+  NotPayee: (args, method) =>
+    ({ stake: "Only a payee in this deal can put in a stake.", leave: "Only a payee in this deal can leave it." })[method] ||
+    "Only the person assigned to this stage can mark it done.",
   NotJudge: () => "Only the judge can settle a dispute.",
   WrongPhase: ([phase]) => PHASE_REASON[Number(phase)],
   WrongState: ([state]) => STATE_REASON[Number(state)],
@@ -46,6 +49,10 @@ const REASONS = {
   NothingOwed: () => "There is nothing for this person to withdraw.",
   TransferFailed: () => "The payment could not be sent.",
   ReentrancyGuardReentrantCall: () => "A second withdrawal was attempted before the first one had finished.",
+  StakeNotRequired: () => "This deal has no stake, so there is nothing to put in and no leave step.",
+  AlreadyStaked: () => "This payee has already put in their stake.",
+  AlreadyLeft: () => "This payee has already left the deal.",
+  NothingToLeave: () => "All of this payee's stages are settled, so there is nothing to walk away from. The stake comes back when the deal closes.",
   // Refusals at creation. The checklist rules catch these first; the contract checks again.
   JudgeMustBeNeutral: () => "The judge cannot be a payer or a payee in the same deal.",
   PayeeCannotBePayer: () => "A person cannot both pay into a deal and be paid from it.",
@@ -86,12 +93,12 @@ function decodeRevert(error, contract) {
   return named ? { name: named[1], args: [] } : null;
 }
 
-function refusalFrom(error, contract) {
+function refusalFrom(error, contract, method) {
   const revert = decodeRevert(error, contract);
   if (!revert) return null;
   const reason = REASONS[revert.name];
   let text = "The contract refused this action.";
-  if (reason) text = reason(revert.args) || text;
+  if (reason) text = reason(revert.args, method) || text;
   return new Refusal(revert.name, text);
 }
 
@@ -99,7 +106,7 @@ function refusalFrom(error, contract) {
  * Deploys one vault for one deal. Amounts are whole rupees.
  * @returns {Promise<string>} the vault's address
  */
-async function deployVault({ payers, judge, stages, agreementHash, contract = "MilestoneVault" }) {
+async function deployVault({ payers, judge, stages, agreementHash, stake = 0, contract = "MilestoneVault" }) {
   const Vault = await ethers.getContractFactory(contract);
   try {
     const vault = await Vault.deploy(
@@ -108,7 +115,8 @@ async function deployVault({ payers, judge, stages, agreementHash, contract = "M
       judge,
       stages.map((stage) => stage.payee),
       stages.map((stage) => toWei(stage.amount)),
-      agreementHash
+      agreementHash,
+      toWei(stake)
     );
     await vault.waitForDeployment();
     return vault.target;
@@ -130,20 +138,22 @@ async function act(vault, signer, method, args = [], overrides = {}) {
     await transaction.wait();
     return { tx: transaction.hash };
   } catch (error) {
-    throw refusalFrom(error, vault) || error;
+    throw refusalFrom(error, vault, method) || error;
   }
 }
 
 /** Reads everything the dashboard needs about a vault, in rupees. */
 async function readVault(address, contract = "MilestoneVault") {
   const vault = await vaultAt(address, contract);
-  const [phase, payers, stages, judge, agreementHash, balance, deposited, withdrawn, locked, owed, reconciles] =
+  const [phase, payers, payees, stages, judge, agreementHash, stake, balance, deposited, withdrawn, locked, owed, reconciles] =
     await Promise.all([
       vault.phase(),
       vault.getPayers(),
+      vault.getPayees(),
       vault.getStages(),
       vault.judge(),
       vault.agreementHash(),
+      vault.stakeAmount(),
       ethers.provider.getBalance(address),
       vault.totalDeposited(),
       vault.totalWithdrawn(),
@@ -159,13 +169,22 @@ async function readVault(address, contract = "MilestoneVault") {
       deposited: await vault.hasDeposited(payer),
     }))
   );
+  const payeeDetails = await Promise.all(
+    payees.map(async (payee) => ({
+      address: payee,
+      staked: await vault.hasStaked(payee),
+      left: await vault.hasLeft(payee),
+    }))
+  );
 
   return {
     address,
     agreementHash,
     judge,
     phase: PHASES[Number(phase)],
+    stake: toRupees(stake),
     payers: payerDetails,
+    payees: payeeDetails,
     stages: stages.map((stage, index) => ({
       number: index + 1,
       payee: stage.payee,
@@ -192,21 +211,27 @@ async function readVault(address, contract = "MilestoneVault") {
 async function readSettlement(address, contract = "MilestoneVault") {
   const vault = await vaultAt(address, contract);
   const eventsNamed = (name) => vault.queryFilter(vault.filters[name]());
-  const [deposits, returns, releases, refunds, withdrawals, disputes, stages, balance] = await Promise.all([
-    eventsNamed("Deposited"),
-    eventsNamed("DepositReturned"),
-    eventsNamed("Released"),
-    eventsNamed("RefundShare"),
-    eventsNamed("Withdrawn"),
-    eventsNamed("Disputed"),
-    vault.getStages(),
-    ethers.provider.getBalance(address),
-  ]);
+  const [deposits, returns, releases, refunds, withdrawals, disputes, stakes, stakeReturns, forfeits, stages, balance] =
+    await Promise.all([
+      eventsNamed("Deposited"),
+      eventsNamed("DepositReturned"),
+      eventsNamed("Released"),
+      eventsNamed("RefundShare"),
+      eventsNamed("Withdrawn"),
+      eventsNamed("Disputed"),
+      eventsNamed("Staked"),
+      eventsNamed("StakeReturned"),
+      eventsNamed("StakeForfeited"),
+      vault.getStages(),
+      ethers.provider.getBalance(address),
+    ]);
 
   // Sums are kept in wei so that nothing is lost to rounding, and converted at the end.
   const accounts = new Map();
   const account = (who) => {
-    if (!accounts.has(who)) accounts.set(who, { paidIn: 0n, earned: 0n, refunded: 0n, withdrawn: 0n });
+    if (!accounts.has(who)) {
+      accounts.set(who, { paidIn: 0n, earned: 0n, refunded: 0n, withdrawn: 0n, staked: 0n, stakeBack: 0n, stakeLost: 0n, fromStakes: 0n });
+    }
     return accounts.get(who);
   };
   for (const event of deposits) account(event.args.payer).paidIn += event.args.amount;
@@ -214,6 +239,12 @@ async function readSettlement(address, contract = "MilestoneVault") {
   for (const event of releases) account(event.args.payee).earned += event.args.amount;
   for (const event of refunds) account(event.args.payer).refunded += event.args.amount;
   for (const event of withdrawals) account(event.args.to).withdrawn += event.args.amount;
+  for (const event of stakes) account(event.args.payee).staked += event.args.amount;
+  for (const event of stakeReturns) account(event.args.payee).stakeBack += event.args.amount;
+  for (const event of forfeits) {
+    account(event.args.payee).stakeLost += event.args.amount;
+    account(event.args.payer).fromStakes += event.args.amount;
+  }
 
   const disputed = new Set(disputes.map((event) => Number(event.args.index)));
   const outcomeOf = (stage, index) => {
@@ -228,6 +259,7 @@ async function readSettlement(address, contract = "MilestoneVault") {
   const earned = total("earned");
   const refunded = total("refunded");
   const withdrawn = total("withdrawn");
+  const staked = total("staked");
 
   return {
     accounts: [...accounts.entries()].map(([who, entry]) => ({
@@ -235,8 +267,12 @@ async function readSettlement(address, contract = "MilestoneVault") {
       paidIn: toRupees(entry.paidIn),
       earned: toRupees(entry.earned),
       refunded: toRupees(entry.refunded),
+      staked: toRupees(entry.staked),
+      stakeBack: toRupees(entry.stakeBack),
+      stakeLost: toRupees(entry.stakeLost),
+      fromStakes: toRupees(entry.fromStakes),
       withdrawn: toRupees(entry.withdrawn),
-      stillToWithdraw: toRupees(entry.earned + entry.refunded - entry.withdrawn),
+      stillToWithdraw: toRupees(entry.earned + entry.refunded + entry.stakeBack + entry.fromStakes - entry.withdrawn),
     })),
     stages: stages.map((stage, index) => ({
       number: index + 1,
@@ -248,11 +284,14 @@ async function readSettlement(address, contract = "MilestoneVault") {
       deposited: toRupees(deposited),
       paidToPayees: toRupees(earned),
       returnedToPayers: toRupees(refunded),
+      staked: toRupees(staked),
+      stakesReturned: toRupees(total("stakeBack")),
+      stakesForfeited: toRupees(total("stakeLost")),
       withdrawn: toRupees(withdrawn),
       stillInVault: toRupees(balance),
     },
-    // Every deposited rupee is either withdrawn or still in the vault.
-    addsUp: deposited === withdrawn + balance,
+    // Every rupee that came in, as a deposit or a stake, is either withdrawn or still in the vault.
+    addsUp: deposited + staked === withdrawn + balance,
   };
 }
 

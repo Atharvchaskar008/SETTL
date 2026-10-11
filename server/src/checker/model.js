@@ -17,6 +17,7 @@ The checklist has:
 - stages: each payment that happens when something is done. Every stage has a short title, the payee, the amount in whole rupees, the condition that must be true, and source.
 - unclear: anything a careful reader could not act on as written. Each item has the issue, a question that would resolve it, and source.
 - total: the sum of the stage amounts.
+- stake: what each payee must put in before the deal starts and loses by walking away, in whole rupees. Use 0 when the text does not ask for one.
 
 Rules:
 1. Use only what the text says. Never invent a name, an amount, a date or a judge. If something is missing, leave that field as "" or 0 and add an unclear item asking for it.
@@ -44,6 +45,7 @@ const CHECKLIST_SCHEMA = object({
   stages: { type: "array", items: object({ title: text, payee: text, amount: rupees, condition: text, source: text }) },
   unclear: { type: "array", items: object({ issue: text, question: text, source: text }) },
   total: rupees,
+  stake: rupees,
 });
 
 const userPrompt = (dealText) => `Deal text:\n\n${dealText}`;
@@ -147,6 +149,7 @@ function normalise(raw) {
       source: string(item.source),
     })),
     total: wholeNumber(raw.total),
+    stake: wholeNumber(raw.stake),
   };
 }
 

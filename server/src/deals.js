@@ -84,21 +84,19 @@ function dealRoutes({ store, env }) {
       base.members.map(async (name) => {
         const person = findPerson(store, name);
         const payer = vault.payers.find((candidate) => candidate.address === person.address);
-        const roles = [
-          payer && "payer",
-          vault.stages.some((stage) => stage.payee === person.address) && "payee",
-          vault.judge === person.address && "judge",
-        ].filter(Boolean);
+        const payee = vault.payees.find((candidate) => candidate.address === person.address);
+        const roles = [payer && "payer", payee && "payee", vault.judge === person.address && "judge"].filter(Boolean);
         return {
           name,
           roles,
           ...(payer ? { share: payer.share, deposited: payer.deposited } : {}),
+          ...(payee && vault.stake > 0 ? { staked: payee.staked, left: payee.left } : {}),
           canWithdraw: await chain.owedTo(deal.vault, person.address),
         };
       })
     );
 
-    return { ...base, phase: vault.phase, stages, people, money: vault.money };
+    return { ...base, phase: vault.phase, stake: vault.stake, stages, people, money: vault.money };
   };
 
   const record = (deal, entry) => {
@@ -331,6 +329,7 @@ function dealRoutes({ store, env }) {
         judge: addressOf(deal.checklist.judge.name),
         stages: deal.checklist.stages.map((stage) => ({ payee: addressOf(stage.payee), amount: stage.amount })),
         agreementHash: deal.agreementHash,
+        stake: deal.checklist.stake || 0,
       });
       deal.status = "locked";
       record(deal, { person: actor.name, action: "lock", detail: `Vault created at ${deal.vault}. Waiting for deposits.` });
@@ -393,6 +392,24 @@ function dealRoutes({ store, env }) {
       const amount = await chain.owedTo(deal.vault, actor.address);
       return { method: "withdraw", detail: `Withdrew ₹${amount}.` };
     })
+  );
+
+  router.post(
+    "/deals/:id/stake",
+    onChain("stake", async (request, deal, actor) => {
+      // A payee puts in the deal's stake. Anyone else sends nothing and is refused by the contract.
+      const isPayee = deal.checklist.stages.some((stage) => sameName(stage.payee, actor.name));
+      const amount = isPayee ? deal.checklist.stake || 0 : 0;
+      return { method: "stake", overrides: { value: chain.toWei(amount) }, detail: `Put in a stake of ₹${amount}.` };
+    })
+  );
+
+  router.post(
+    "/deals/:id/leave",
+    onChain("leave", async () => ({
+      method: "leave",
+      detail: "Left the deal. Their unsettled stages were refunded and their stake went to the payers.",
+    }))
   );
 
   // Stage numbers in the API count from 1, as people do. The contract counts from 0.

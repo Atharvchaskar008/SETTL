@@ -58,6 +58,7 @@ The contract only knows payers, payees, a judge and a list of stages, so the sam
 | Freelance work | The client | The freelancer | Design, development, launch |
 | House construction | The owner | Mason, plumber, electrician | One per trade |
 | Company bonus or project payout | The company | Employees | Project stages, one per person |
+| Home repair with a stake | The owner | A tradesperson who stakes ₹5,000 | Two stages; the stake is lost by walking away |
 
 A sample of each is in [server/fixtures/](server/fixtures/).
 
@@ -127,15 +128,19 @@ The vault itself moves through four phases: **Funding** (waiting for every payer
 
 | Action | Who | Allowed when | Effect |
 |---|---|---|---|
-| `deposit()` | A payer | Funding; this payer has not paid; the value equals their share | Records the deposit. When every payer has paid, the vault becomes Active |
-| `cancel()` | A payer | Funding | The vault becomes Cancelled and each deposit is credited back to its payer |
+| `deposit()` | A payer | Funding; this payer has not paid; the value equals their share | Records the deposit. The vault becomes Active when every payer has paid and, if a stake is set, every payee has staked |
+| `stake()` | A payee | Funding; a stake is set; this payee has not staked; the value equals the stake | Records the stake. It is credited back when the deal closes |
+| `cancel()` | A payer | Funding | The vault becomes Cancelled and each deposit and stake is credited back to whoever made it |
 | `markComplete(i)` | The payee of stage `i` | Active; stage is Pending | Stage becomes Completed |
 | `approve(i)` | A payer, once per stage | Active; stage is Completed | Counts the approval. When more than half the payers have approved, the stage is Released and its amount is credited to the payee |
 | `dispute(i)` | A payer | Active; stage is Completed | Stage becomes Disputed |
 | `resolve(i, payPayee)` | The judge | Active; stage is Disputed | Released (credit the payee) or Refunded (credit the payers by share) |
+| `leave()` | A payee with an unsettled stage | Active; a stake is set; this payee has not left | Their unsettled stages are refunded to the payers, and their stake is credited to the payers by share |
 | `withdraw()` | Anyone with credit | Credit above zero | Clears the credit, then sends the money |
 
 Anything else is refused with a named error.
+
+The stake is optional and set per deal; zero switches it off. It gives a payee a reason not to walk away from a locked deal. A forfeited stake goes to the payers, never to the judge, so nobody gains by pushing a payee out.
 
 ### How it stays safe
 
@@ -147,6 +152,7 @@ Anything else is refused with a named error.
 | No re-entrancy theft | Money leaves through one function only. It clears the credit before sending, and it cannot be re-entered | [test/reentrancy.test.js](test/reentrancy.test.js) |
 | Balance always reconciles | `reconciles()` checks that the balance equals deposits minus withdrawals, and also locked money plus owed money | Every test, plus [test/reconcile.test.js](test/reconcile.test.js) |
 | Fair group rules | Approval needs more than half the payers; a refund is split by share, with the rounding remainder to the last payer | [test/group.test.js](test/group.test.js) |
+| The stake cannot be gamed | It is returned only at the close, a payee who left never gets it back, and `leave` cannot be used twice, by an outsider, or to pull the stake out early | [test/stake.test.js](test/stake.test.js) |
 
 ### The re-entrancy demonstration
 
@@ -182,6 +188,7 @@ The checker turns deal text into this checklist. Amounts are whole rupees.
   ],
   "unclear": [{ "issue": "No launch date", "question": "What is the launch date?", "source": "" }],
   "total": 14400,
+  "stake": 0,
   "readBy": "model"
 }
 ```
@@ -233,6 +240,7 @@ Stage numbers in the API count from 1.
 | `POST /deals/:id/agree` | One member agrees |
 | `POST /deals/:id/lock` | Refused until everyone has agreed. Deploys the vault |
 | `POST /deals/:id/deposit`, `/cancel`, `/withdraw` | Money actions |
+| `POST /deals/:id/stake`, `/leave` | A payee puts in the stake, or walks away from a locked deal |
 | `POST /deals/:id/stages/:n/complete`, `/approve`, `/dispute`, `/resolve` | Stage actions. `:n` counts from 1. `resolve` takes `"decision": "pay"` or `"refund"` |
 | `GET /deals`, `GET /deals/:id` | Deal list, and one deal with its stage states and balances |
 | `GET /deals/:id/history` | Accepted actions and refused attempts |
@@ -252,6 +260,7 @@ test/                         contract tests
   attacks.test.js             second release, unauthorised refund, out-of-order steps
   reentrancy.test.js          the same attacker against both vaults
   group.test.js               several payers: funding, majority approval, refund split
+  stake.test.js               the optional stake: funding, return, leaving, cheat attempts
   reconcile.test.js           random actions with the balance checked after each
 server/
   src/app.js, index.js        the API and its entry point
@@ -261,7 +270,7 @@ server/
   src/deals.js                deal routes
   src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
-  fixtures/                   four sample deals
+  fixtures/                   five sample deals
   test/                       checker tests and API tests
 scripts/demo.js               end-to-end run of four deals and four attacks
 samples/                      more sample deals with their expected checklists
@@ -297,7 +306,7 @@ npm start
 | `npm test` | Compiles the contracts and runs every contract test and server test |
 | `npm run test:contract` | Contract tests only |
 | `npm run test:server` | Server tests only |
-| `npm run demo` | Runs four deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
+| `npm run demo` | Runs five deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
 | `npm start` | Starts the server at `http://localhost:3000` |
 
 ### What the demo shows
@@ -310,6 +319,7 @@ npm start
 | Flatmates sharing wifi | Three payers. The deal starts only when all three have paid, and a stage is released on two approvals out of three |
 | House construction | Three trades. One dispute is settled for the payee and one for the payer; nobody but the judge can settle either |
 | Company bonus | One payer and four employees, with one stage per person |
+| Kitchen retiling with a stake | The deal starts only once the payee has staked. The payee then walks away: the unfinished stage is refunded and the stake goes to the payer |
 | Attack lab | Second release, unauthorised refund, out-of-order steps, and re-entrancy against both the real vault and the weak copy |
 | Model reader | Only when a key is set: reads one deal with the model and reports what came back |
 
@@ -342,19 +352,20 @@ With no key, the offline reader is used and everything else works the same.
 
 | Part | Status |
 |---|---|
-| Vault contract | Done. 62 contract tests pass |
+| Vault contract, including the optional stake | Done. 81 contract tests pass |
 | Attack tests and the WeakVault comparison | Done |
-| Deal checker: offline reader, validation, fallback | Done. 29 tests pass |
+| Deal checker: offline reader, validation, fallback | Done. 31 tests pass |
 | Deal checker: model reader | Written. Not yet run against a live key; `npm run demo` exercises it when a key is set |
-| Server: every route in the table above | Done. 23 API tests pass |
-| End-to-end demo (`npm run demo`) | Done. Four deals and four attacks, with every step checked |
+| Server: every route in the table above | Done. 26 API tests pass |
+| End-to-end demo (`npm run demo`) | Done. Five deals and four attacks, with every step checked |
 | Web app | Not built yet |
 
 ## Limits
 
 - **All money is simulated.** There is no real UPI or bank connection.
 - **"Locked in" covers only money already deposited.** A contract cannot take money from someone later, so payers deposit their full share at the start.
-- **It cannot force anyone to do the work.** It controls only when money moves.
+- **It cannot force anyone to do the work.** It controls only when money moves. The optional stake gives a payee a reason to finish, nothing more.
+- **There are no deadlines.** If a payee never marks a stage done and never leaves, that stage's money stays locked. A time limit after which the payers can reclaim it is planned.
 - **People still decide.** A person approves the work and a person judges a dispute. Settl does not decide whether work is good.
 - **It does not replace a legal contract.**
 - **There is no login.** The server acts as whichever person a request names, and it holds every test account. The contract still enforces each account's role, but a real deployment needs each person to sign with their own wallet.
@@ -371,4 +382,4 @@ With no key, the offline reader is used and everything else works the same.
 | 3. Company | Teams in place of single people | Approval by several managers; a panel of judges deciding by majority |
 | 4. Large enterprise | A main contractor with many subcontractors | Vaults that pay into other vaults, an inspector's sign-off as a condition, links to company accounts |
 
-Also planned: an optional stake that a payee loses by walking away from a locked deal, monthly payments backed by a penalty deposit, and real rupee payments through a licensed payment partner.
+Also planned: a deadline per stage, monthly payments backed by the stake in place of a full deposit up front, and real rupee payments through a licensed payment partner.
