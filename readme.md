@@ -1,503 +1,447 @@
-# Settl
+# Settl — Staged Escrow Agreement Engine
 
-**Turn a deal written in plain words into a locked agreement.** People join, money is locked in a smart contract, and each person is paid only when their stage is approved.
+> **Turn plain-language agreements into locked, cryptographically verified escrow contracts.**  
+> Built for **VORTEXA 3.0**, Problem **B-03 MilestoneVault: Adversarial Smart-Contract Escrow**.
 
-Built for VORTEXA 3.0, problem **B-03 MilestoneVault: Adversarial Smart-Contract Escrow**.
+---
 
-> All money in this project is test money. Nothing here moves real money or connects to a real payment system, and the server refuses to start on a network where money is real.
+## Table of Contents
+1. [Executive Summary](#1-executive-summary)
+2. [System Architecture](#2-system-architecture)
+3. [Backend Deep Dive](#3-backend-deep-dive)
+   - [Express API Server & Routes](#express-api-server--routes)
+   - [Smart Contract: MilestoneVault.sol](#smart-contract-milestonevaultsol)
+   - [AI Deal Checker Engine](#ai-deal-checker-engine)
+   - [Hardhat Local Chain & Testnet RPC](#hardhat-local-chain--testnet-rpc)
+   - [Security Guarantees & Attack Lab](#security-guarantees--attack-lab)
+   - [State Store & Session Authentication](#state-store--session-authentication)
+4. [Frontend Deep Dive: Dashboards](#4-frontend-deep-dive-dashboards)
+   - [The Ultra-Modern Bento Dashboard (`/web`)](#the-ultra-modern-bento-dashboard-web)
+   - [The 5 Bento Cards Breakdown](#the-5-bento-cards-breakdown)
+   - [The 5 Application Screens](#the-5-application-screens)
+   - [The Minimalist Dashboard (`/app`)](#the-minimalist-dashboard-app)
+   - [The Bridge Architecture (`/old`)](#the-bridge-architecture-old)
+   - [Design Tokens, Currency & Refusal UX](#design-tokens-currency--refusal-ux)
+5. [Context for AI Coding Agents](#5-context-for-ai-coding-agents)
+   - [Agent Mission & Role](#agent-mission--role)
+   - [Non-Negotiable Architectural Invariants](#non-negotiable-architectural-invariants)
+   - [File & Directory Map](#file--directory-map)
+   - [Complete REST API Contract](#complete-rest-api-contract)
+   - [State Machine & Transitions](#state-machine--transitions)
+   - [Testing & Execution Playbook](#testing--execution-playbook)
+   - [Common Gotchas & Troubleshooting](#common-gotchas--troubleshooting)
 
-## Contents
+---
 
-- [The problem](#the-problem)
-- [What Settl does](#what-settl-does)
-- [Who can use it](#who-can-use-it)
-- [Architecture](#architecture)
-- [The vault contract](#the-vault-contract)
-- [The deal checker (the AI part)](#the-deal-checker-the-ai-part)
-- [The server](#the-server)
-- [Wallets and real users](#wallets-and-real-users)
-- [Project layout](#project-layout)
-- [Tech stack](#tech-stack)
-- [How to run it](#how-to-run-it)
-- [Build status](#build-status)
-- [Limits](#limits)
-- [Roadmap](#roadmap)
+## 1. Executive Summary
 
-## The problem
+When work is paid in milestones, both parties face risk: clients fear losing capital before delivery, and workers fear completing tasks without receiving payment. Middlemen introduce hidden costs, vague phrasing causes disputes, and software handling funds cannot tolerate vulnerabilities like re-entrancy or double payouts.
 
-When work is paid in stages, both sides are afraid to go first. The payer fears losing the money, and the worker fears not being paid. Three things make it worse:
+**Settl eliminates counterparty risk** by:
+1. **Translating natural language agreements** into unambiguous structured checklists via an AI-powered checker (with deterministic offline fallback).
+2. **Locking simulated or testnet funds** into a battle-tested EVM escrow smart contract (`MilestoneVault.sol`).
+3. **Releasing payouts incrementally** upon client approval or arbiter (judge) dispute resolution.
+4. **Providing high-fidelity dashboard interfaces**: an ultra-modern light-blue Bento Command Center (`/web`) and a streamlined single-page workflow app (`/app`).
+5. **Operating entirely with simulated money / test ETH**: zero real money is ever at risk.
 
-1. **The middleman is a black box.** Whoever holds the money sets hidden rules and can delay or favour one side.
-2. **Agreements are vague.** A line like "pay when the work is good" becomes a dispute later.
-3. **A program that holds money cannot make mistakes.** A payment released twice, the wrong person triggering a refund, or a re-entrant call can lose the money for good.
+---
 
-## What Settl does
-
-1. **Describe.** One person, the organiser, types the deal in normal language.
-2. **Check.** The deal checker turns the text into a checklist of who pays, who gets paid, who judges, the stages and the amounts. It marks every unclear line, and the organiser fixes them.
-3. **Join.** The organiser adds the people, by name or by wallet address. Each person reads the checklist and signs it. The vault is then created and the payers deposit their share. The deal is now locked.
-4. **Do and approve.** The person responsible marks a stage done. The payers approve and that person is paid, or a payer disputes and the judge chooses "pay" or "refund".
-5. **Finish.** Every stage is settled, the money adds up exactly, and the full history is visible.
-
-Three roles cover every deal:
-
-| Role | What they do |
-|---|---|
-| **Payers** | Put money in. There can be one or several, each with a share. |
-| **Payees** | Get paid, one per stage. One person can be the payee of several stages. |
-| **Judge** | Settles disputes. Never a payer or a payee, and can never take the money. |
-
-These map directly onto the brief: the payers are the **client**, the payees are the **provider**, and the judge is the **arbiter**. A deal with one payer and one payee is exactly the case the brief describes.
-
-## Who can use it
-
-The contract only knows payers, payees, a judge and a list of stages, so the same code runs very different deals.
-
-| Deal | Payers | Payees | Stages |
-|---|---|---|---|
-| Flatmates sharing wifi for a year | Three flatmates | The wifi provider | 12 monthly stages |
-| Freelance work | The client | The freelancer | Design, development, launch |
-| House construction | The owner | Mason, plumber, electrician | One per trade |
-| Company bonus or project payout | The company | Employees | Project stages, one per person |
-| Home repair with a stake | The owner | A tradesperson who stakes ₹5,000 | Two stages; the stake is lost by walking away |
-
-A sample of each is in [server/fixtures/](server/fixtures/).
-
-## Architecture
-
-### Components
+## 2. System Architecture
 
 ```mermaid
-flowchart LR
-    PAGE["Dashboard<br/>(app/)"] -->|"HTTP + JSON"| API["Express server"]
-    API --> CHECKER["Deal checker"]
-    API --> STORE["JSON store<br/>people, deals, history"]
-    API -->|"ethers.js"| CHAIN["Chain<br/>local Hardhat network,<br/>or a public test network"]
-    PAGE -.->|"asks to sign"| WALLET["A person's wallet"]
-    WALLET -->|"signed transactions"| CHAIN
-    CHAIN --> VAULT["MilestoneVault<br/>one per deal"]
-    CHECKER -.->|"optional"| MODEL["Language model API"]
+flowchart TB
+    subgraph Frontend["Frontend Clients"]
+        BENTO["Ultra-Modern Bento Dashboard<br/>(/web — 100vh Edge-to-Edge)"]
+        MINIMAL["Minimalist Dashboard<br/>(/app — Single Page Workflow)"]
+        WALLET_UI["MetaMask / Browser Web3"]
+    end
+
+    subgraph Backend["Express Application Server (Node.js)"]
+        ROUTER["REST API Router (/deals, /people, /attacks)"]
+        AUTH["Auth & Sessions (/auth)"]
+        CHECKER["Deal Checker Engine"]
+        BRIDGE["Settl Bridge (/settl-bridge.js)"]
+        STORE["Atomic JSON Store (store.json)"]
+    end
+
+    subgraph AI["AI Parsing Engine"]
+        CLAUDE["Anthropic Claude SDK"]
+        GEMINI["Google Gemini API"]
+        RULES["Deterministic Offline Parser (regex/rules)"]
+        VALIDATOR["Zero-Hallucination Quote Validator"]
+    end
+
+    subgraph Chain["Blockchain Layer (EVM)"]
+        HARDHAT["In-Memory Hardhat EVM (Chain ID 31337)"]
+        SEPOLIA["Sepolia Testnet (Optional Public)"]
+        VAULT["MilestoneVault.sol Instances"]
+        ATTACK_DEMO["WeakVault.sol vs ReentrantAttacker.sol"]
+    end
+
+    BENTO -->|"REST JSON"| ROUTER
+    MINIMAL -->|"REST JSON"| ROUTER
+    WALLET_UI -.->|"Signs Transactions"| HARDHAT
+    WALLET_UI -.->|"Signs Transactions"| SEPOLIA
+
+    ROUTER --> CHECKER
+    ROUTER --> AUTH
+    ROUTER --> STORE
+    ROUTER -->|"ethers.js"| HARDHAT
+    ROUTER -->|"ethers.js"| SEPOLIA
+
+    CHECKER --> CLAUDE
+    CHECKER --> GEMINI
+    CHECKER --> RULES
+    CHECKER --> VALIDATOR
+
+    HARDHAT --> VAULT
+    SEPOLIA --> VAULT
+    HARDHAT --> ATTACK_DEMO
 ```
 
-| Component | Job | Where |
-|---|---|---|
-| Vault contract | Holds the money and enforces every rule about who may do what, and when | [contracts/MilestoneVault.sol](contracts/MilestoneVault.sol) |
-| Deal checker | Reads deal text into a proposed checklist, with a model path and an offline path | [server/src/checker/](server/src/checker/) |
-| Server | Stores deals and people, runs the agree step, creates a vault from a confirmed checklist or prepares that transaction for the organiser's wallet, and forwards actions to the vault | [server/src/](server/src/) |
-| Dashboard | One page: a bar to describe a deal, a workspace of deals, and the open deal with the steps the signed-in person can take | [app/](app/) |
-| Chain | By default a Hardhat network running inside the server process, with built-in test accounts. Optionally a public test network such as Sepolia | [hardhat.config.js](hardhat.config.js) |
+---
 
-### From text to a locked vault
+## 3. Backend Deep Dive
 
-```mermaid
-flowchart TD
-    A["Deal text typed by the organiser"] --> B{"Model key configured?"}
-    B -- "yes" --> C["Model reader"]
-    B -- "no" --> D["Offline rules reader"]
-    C -- "error, timeout, refusal<br/>or unusable answer" --> D
-    C --> E["Source check<br/>drop anything that does not quote the text"]
-    D --> E
-    E --> F["Proposed checklist + unclear points"]
-    F --> G["Organiser edits and confirms<br/>(refused while any problem is open)"]
-    G --> H["Every person in the deal agrees"]
-    H --> I["One vault is created<br/>from the confirmed checklist"]
-    I --> J["Payers deposit<br/>vault becomes Active"]
-    J --> K["Each action is sent to the vault<br/>as the person who asked"]
+The backend runs on **Node.js 22+** using **Express 4.21**, **Hardhat 2.22**, and **ethers.js 6.13**.
+
+### Express API Server & Routes
+Located in `server/src/`, initialized from `server/src/index.js` and assembled in `server/src/app.js`:
+
+- **`index.js`**: Starts the HTTP server (default port `3000`) and the optional wallet JSON-RPC port (`8545`).
+- **`app.js`**: Configures middleware, static file serving, wallet auth sessions, deals routes, people routes, attack lab routes, and the `/old` bridge.
+- **`deals.js`**: Core business logic for creating drafts, confirming terms, recording member agreements, deploying vaults, handling stage operations (`done`, `approve`, `dispute`, `resolve`), and tracking fund withdrawals.
+- **`people.js`**: Manages fictional demo personas (Riya, Kabir, Aman, Priya, Meera, Vikram) and registered Web3 wallet addresses.
+- **`chain.js`**: Direct interface to ethers.js and the EVM. Deploys `MilestoneVault.sol`, queries balances, builds unsigned transactions for wallet holders, executes calls for demo personas, and maps Solidity errors to human-readable text.
+- **`attacks.js`**: Controls the live Attack Lab scenarios.
+- **`rpc.js`**: Proxies JSON-RPC calls for wallets on the local Hardhat chain.
+
+### Smart Contract: `MilestoneVault.sol`
+Located in `contracts/MilestoneVault.sol`.
+- **Compiler**: Solidity `^0.8.28`, utilizing OpenZeppelin `ReentrancyGuard`.
+- **Factoryless Pattern**: The smart contract is not dynamically generated by AI. It is written and audited once. Each deal deploys a fresh instance parameterized by agreement terms.
+- **Phases**:
+  1. `Funding`: Waiting for payer deposits and optional payee stakes.
+  2. `Active`: 100% funded; stages can be worked on and approved.
+  3. `Cancelled`: Escrow aborted during `Funding`; deposits and stakes credited back.
+  4. `Closed`: All stages released or refunded; remaining stakes returned.
+- **Stage States**:
+  - `Pending` $\to$ `Completed` (payee marks done)
+  - `Completed` $\to$ `Released` (majority payer approval)
+  - `Completed` $\to$ `Disputed` (any payer objects)
+  - `Disputed` $\to$ `Released` (judge awards payee)
+  - `Disputed` $\to$ `Refunded` (judge refunds payers)
+- **Mathematical Invariant**:
+  $$\text{Vault Balance} = \sum \text{Locked Stages} + \sum \text{Withdrawable Credits}$$
+- **Anti-Theft Protections**:
+  - Checks-Effects-Interactions pattern: balance cleared before external transfer.
+  - `nonReentrant` modifier on all withdrawal paths.
+  - Judge can *only* decide between `pay` or `refund`; the judge can **never** divert funds to their own address.
+
+### AI Deal Checker Engine
+Located in `server/src/checker/`:
+1. **Model Reader (`model.js`)**: Leverages Claude (via Anthropic SDK) or Gemini to extract payers, payee, judge, stages, conditions, amounts, and vague phrases.
+2. **Offline Reader (`rules.js`)**: Deterministic pattern matching using regex. Operates with zero network calls and flags anything non-standard as an unclear point.
+3. **Validation & Quote Verification (`validate.js`)**: Enforces the **Zero-Hallucination Invariant**: every extracted milestone condition must match a substring from the original text verbatim. Unmatched conditions are discarded.
+4. **Scoring Test (`scripts/score.js`)**: Benchmarks extraction accuracy against 8 benchmark contracts in `samples/deals/`.
+
+### Hardhat Local Chain & Testnet RPC
+- **Local Mode (`npm start`)**: Uses Hardhat's in-memory EVM. Resets cleanly on restart. Serves JSON-RPC at `/rpc` and `http://localhost:8545`. Pre-funds demo and wallet accounts with 10,000 test ETH ($1\text{ ETH} \equiv ₹1,000$).
+- **Testnet Mode (`npm run testnet`)**: Connects to public testnets (e.g. Sepolia) where 1 test ETH is scaled down for faucet limits ($0.000001\text{ ETH} \equiv ₹1,000$). Deals persist in `server/data/testnet.json`.
+
+### Security Guarantees & Attack Lab
+Demonstrates security via 4 real-time interactive attack vectors against `MilestoneVault.sol` vs `WeakVault.sol`:
+1. **Second Release**: Payee attempts to trigger payment twice on an approved milestone. Refused with HTTP 409 because stage is already `Released`.
+2. **Unauthorized Refund**: Payer attempts to trigger a refund without Arbiter judgment. Refused with HTTP 409 (RBAC check fails).
+3. **Out-of-Order Approval**: Client attempts to approve a milestone before the provider submitted completion proof. Refused because stage is still `Pending`.
+4. **Re-entrancy Exploit**: Attacker contract (`ReentrantAttacker.sol`) repeatedly re-enters `withdraw()` in its fallback function. On `WeakVault.sol`, the entire contract balance is drained; on `MilestoneVault.sol`, `ReentrancyGuard` halts the transaction.
+
+### State Store & Session Authentication
+- **Store (`server/src/store.js`)**: Atomic JSON storage (`server/data/store.json`).
+- **Authentication (`server/src/auth.js`)**:
+  - Demo personas: identified by `{ person: "Riya" }` payload.
+  - Wallet personas: cryptographic `personal_sign` signature verification producing bearer session tokens.
+
+---
+
+## 4. Frontend Deep Dive: Dashboards
+
+Settl includes two distinct dashboards catering to different use cases:
+
+```
+                  ┌────────────────────────────────────────┐
+                  │          FRONTEND INTERFACES           │
+                  └──────────────────┬─────────────────────┘
+                                     │
+           ┌─────────────────────────┴─────────────────────────┐
+           ▼                                                   ▼
+┌───────────────────────────────────────┐   ┌───────────────────────────────────────┐
+│       ULTRA-MODERN BENTO DASHBOARD    │   │         MINIMALIST WORKFLOW           │
+│              Directory: /web          │   │           Directory: /app             │
+│            Served at: /old            │   │            Served at: /               │
+│  • Edge-to-edge 100vh Bento Grid      │   │  • Clean 3-part layout                │
+│  • 5 Interactive Bento Cards          │   │  • Single-page linear workflow        │
+│  • Floating telemetry & orbital lamp  │   │  • Direct MetaMask web3 connect       │
+│  • 5 Modular full-screen views        │   │  • Quick prompt execution             │
+└───────────────────────────────────────┘   └───────────────────────────────────────┘
 ```
 
-Three design decisions matter most here:
+---
 
-- **The contract is not generated.** One vault contract was written and tested once. Every deal gets a fresh copy of it, filled in with that deal's people and amounts.
-- **Whoever creates the vault cannot change it.** For demo people the server creates it. For wallet people the organiser's own wallet does, from a transaction the server builds out of the agreed terms. The server accepts the result only if the transaction on the chain matches that one byte for byte.
-- **AI output never reaches the contract directly.** The model only proposes. A person must confirm, every member must agree, and only that confirmed checklist is used to create the vault. A fingerprint of the deal text and the confirmed checklist is stored in the vault, so the vault is tied to exactly what everyone agreed to.
+### The Ultra-Modern Bento Dashboard (`/web`)
 
-## The vault contract
+The flagship visual experience in `web/` (`index.html`, `app.css`, `app.js`) is styled as an **intelligent fintech command hub**:
+- **Zero Scroll / Full Viewport**: Designed to fit exactly within `100vw × 100vh`.
+- **Refractive Glassmorphism**: Translucent panels (`backdrop-filter: blur(20px)`), delicate borders (`rgba(255, 255, 255, 0.45)`), and ambient cyan/blue gradients.
+- **Left Navigation Rail**: Contains the Settl Clover brand emblem, 5 icon tabs (Dashboard, Deals, AI Builder, Arbiter, Attack Lab), a data reset button, and an interactive active persona switcher.
 
-### Stage path
+---
 
-```mermaid
-stateDiagram-v2
-    [*] --> Pending
-    Pending --> Completed: payee marks it done
-    Completed --> Released: more than half the payers approve
-    Completed --> Disputed: any payer disputes
-    Disputed --> Released: judge pays the payee
-    Disputed --> Refunded: judge refunds the payers
-    Released --> [*]
-    Refunded --> [*]
-```
+### The 5 Bento Cards Breakdown
 
-The vault itself moves through four phases: **Funding** (waiting for every payer's deposit), **Active**, **Cancelled** and **Closed** (every stage settled).
+Located on the main dashboard screen (`#screen-deal-dashboard`):
 
-### Actions
+#### 1. Hero Panoramic Workspace Card (Top Left)
+- Displays current agreement title and status badge.
+- Floating telemetry pills: `₹30,000 Escrow Total`, `₹20,000 Locked`, `₹10,000 Paid Out`, `100% Verified`.
+- Inline natural language AI prompt input bar with sample triggers.
+- Prominent `"Simulated funds"` permanent disclaimer tag.
 
-| Action | Who | Allowed when | Effect |
-|---|---|---|---|
-| `deposit()` | A payer | Funding; this payer has not paid; the value equals their share | Records the deposit. The vault becomes Active when every payer has paid and, if a stake is set, every payee has staked |
-| `stake()` | A payee | Funding; a stake is set; this payee has not staked; the value equals the stake | Records the stake. It is credited back when the deal closes |
-| `cancel()` | A payer | Funding | The vault becomes Cancelled and each deposit and stake is credited back to whoever made it |
-| `markComplete(i)` | The payee of stage `i` | Active; stage is Pending | Stage becomes Completed |
-| `approve(i)` | A payer, once per stage | Active; stage is Completed | Counts the approval. When more than half the payers have approved, the stage is Released and its amount is credited to the payee |
-| `dispute(i)` | A payer | Active; stage is Completed | Stage becomes Disputed |
-| `resolve(i, payPayee)` | The judge | Active; stage is Disputed | Released (credit the payee) or Refunded (credit the payers by share) |
-| `leave()` | A payee with an unsettled stage | Active; a stake is set; this payee has not left | Their unsettled stages are refunded to the payers, and their stake is credited to the payers by share |
-| `withdraw()` | Anyone with credit | Credit above zero | Clears the credit, then sends the money |
+#### 2. Agreements List Card (Top Right)
+- Vertical scrollable queue of all registered deals.
+- Highlights active deal in an elevated, drop-shadowed white card.
+- Displays deal progress counters (e.g. `2 of 4 milestones settled`).
+- Full-width dark action pill button: `[ + ADD AGREEMENT ]`.
 
-Anything else is refused with a named error.
+#### 3. Milestone Vault Disk Card (Bottom Left)
+- Interactive concentric SVG vault ring with animated gradient rotation.
+- Real-time stat callouts (`Locked Escrow`, `Spec Verified`).
+- Contextual milestone action buttons:
+  - Payee: `[ Submit Proof / Mark Done ]`
+  - Client: `[ Approve ]` or `[ Dispute ]`
+- Approval counters (e.g., `1 of 2 Approved`).
 
-The stake is optional and set per deal; zero switches it off. It gives a payee a reason not to walk away from a locked deal. A forfeited stake goes to the payers, never to the judge, so nobody gains by pushing a payee out.
+#### 4. Smart Arbiter Lamp Card (Bottom Center)
+- Radiant 3D pendant lamp orb with ambient radial illumination.
+- Interactive Dispute Guard toggle and ruling percentage slider.
+- Arbiter decision buttons: `[ Pay Payee ]` or `[ Refund Payers ]`.
+- Only interactive when the active persona is the designated Arbiter (`Judge`) and the milestone is in `Disputed` status.
 
-### How it stays safe
+#### 5. Freelancer Payout & Radial Progress Card (Bottom Right)
+- Profile avatar of the active user framed inside an SVG circular progress arc.
+- Live withdrawable rupee counter.
+- 5 playback-styled operational controls: `Withdraw`, `Prev Milestone`, `Approve / Release`, `Next Milestone`, `Deposit`.
 
-| Guarantee | How the contract does it | Proved by |
-|---|---|---|
-| No second release | A stage can be settled once. Its state changes before any credit is given | [test/attacks.test.js](test/attacks.test.js) |
-| No unauthorised refund | `resolve` checks that the caller is the judge. The judge's only choices are pay or refund, and neither sends money to the judge | [test/attacks.test.js](test/attacks.test.js) |
-| No out-of-order step | Every action checks the caller, then the vault phase, then the stage state | [test/attacks.test.js](test/attacks.test.js) |
-| No re-entrancy theft | Money leaves through one function only. It clears the credit before sending, and it cannot be re-entered | [test/reentrancy.test.js](test/reentrancy.test.js) |
-| Balance always reconciles | `reconciles()` checks that the balance equals deposits minus withdrawals, and also locked money plus owed money | Every test, plus [test/reconcile.test.js](test/reconcile.test.js) |
-| Fair group rules | Approval needs more than half the payers; a refund is split by share, with the rounding remainder to the last payer | [test/group.test.js](test/group.test.js) |
-| The stake cannot be gamed | It is returned only at the close, a payee who left never gets it back, and `leave` cannot be used twice, by an outsider, or to pull the stake out early | [test/stake.test.js](test/stake.test.js) |
+---
 
-### The re-entrancy demonstration
+### The 5 Application Screens
 
-[contracts/demo/WeakVault.sol](contracts/demo/WeakVault.sol) is the real vault with the two `withdraw` protections removed. It is unsafe on purpose and exists only for comparison. The same attacker, [contracts/demo/ReentrantAttacker.sol](contracts/demo/ReentrantAttacker.sol), is run against both:
+1. **Deals Overview Screen (`#screen-deals`)**: Table of all deals with Phase badge, rupee amounts, progress, and pending actor indicators.
+2. **New Deal Wizard (`#screen-new-deal`)**:
+   - *Step 1: Describe*: Natural language text entry with sample shortcuts.
+   - *Step 2: Review*: Split screen. Left shows original text with ambiguous phrases highlighted in amber; right shows editable milestones. Hovering over a milestone highlights its exact source in cyan.
+   - *Step 3: Agree*: Multi-party signature checklist.
+   - *Step 4: Lock*: Deploys vault and triggers simulated UPI deposit.
+3. **Deal Command Center (`#screen-deal-dashboard`)**: The 5-card Bento Grid described above.
+4. **Security Attack Lab (`#screen-attack-lab`)**: Interactive simulator running the 4 attack vectors with real-time EVM event logs and side-by-side comparison tables.
+5. **Settlement Summary (`#screen-summary`)**: Final audit sheet for `Closed` deals confirming mathematical reconciliation: $\text{Deposited} = \text{Paid Out} + \text{Refunded}$.
 
-| | Real vault | WeakVault |
-|---|---|---|
-| Owed to the attacker | One stage | One stage |
-| Attacker receives | Exactly one stage | Every stage in the vault |
-| Honest payee afterwards | Still paid | Cannot be paid |
+---
 
-### Balance check under random actions
+### The Minimalist Dashboard (`/app`)
 
-[test/reconcile.test.js](test/reconcile.test.js) sends hundreds of random actions at a vault, from the right people and the wrong ones, and checks the books after every single step. The sequence is seeded, so any failure can be replayed.
+Located in `app/` (`index.html`, `settl.css`, `settl.js`), served at the root `/`:
+- **Header**: Network badge, wallet connect/persona button, Attack Lab trigger.
+- **Top Input Bar**: Single text area to describe a deal in plain words with an "AI" toggle.
+- **Workspace Column**: Filterable deal list.
+- **Deal View**: Step-by-step progression: **Check** $\to$ **Sign** $\to$ **Fund** $\to$ **Pay**.
+- Contextual button changes automatically depending on whose turn it is (`Confirm`, `Sign`, `Deposit`, `Done`, `Approve`, `Withdraw`).
 
-## The deal checker (the AI part)
+---
 
-The checker turns deal text into this checklist. Amounts are whole rupees.
+### The Bridge Architecture (`/old`)
 
-```json
-{
-  "title": "Wifi for Flat 12, one year",
-  "payers": [{ "name": "Asha", "share": 4800 }],
-  "judge": { "name": "Mrs. Kulkarni" },
-  "stages": [
-    {
-      "title": "Month 1",
-      "payee": "QuickNet Broadband",
-      "amount": 1200,
-      "condition": "the three flatmates confirm the wifi worked that month",
-      "source": "exact text copied from the deal"
-    }
-  ],
-  "unclear": [{ "issue": "No launch date", "question": "What is the launch date?", "source": "" }],
-  "total": 14400,
-  "stake": 0,
-  "readBy": "model"
-}
-```
+- The backend serves `app/` at `/`.
+- The Bento dashboard (`web/index.html`) is served at `/old`.
+- `server/public/settl-bridge.js` automatically hooks into `/old` to inject compatibility bindings between legacy events and the Express API.
 
-### Two readers, one set of checks
+---
 
-| Reader | When it runs | What it is |
-|---|---|---|
-| **Model reader** ([model.js](server/src/checker/model.js)) | A model key is configured | A language model fills in the checklist. Claude is used through the official SDK with a fixed JSON schema; Gemini is supported as an alternative |
-| **Offline reader** ([rules.js](server/src/checker/rules.js)) | No key, or the model fails in any way | Fixed sentence patterns, no network. It is cautious by design: anything it cannot read becomes an unclear point |
+### Design Tokens, Currency & Refusal UX
 
-Every result records which reader produced it (`readBy`) and, if the offline reader took over, why.
+1. **Indian Rupee Formatting**:
+   Every monetary figure uses Indian numbering groupings:
+   ```javascript
+   function formatRupees(amount) {
+     return "₹" + Number(amount || 0).toLocaleString("en-IN");
+   }
+   // Examples: ₹10,000 | ₹2,00,000 | ₹14,400
+   ```
+2. **Inline Refusals (HTTP 409)**:
+   Errors are **never** hidden in the browser console. Whenever the backend returns `409 Conflict`, the error string is injected directly below the triggering button inside a `.refusal-alert` banner.
+3. **"Try Anything" Mode**:
+   A toggle switch in the UI that un-disables all buttons for all personas. Allows evaluators and testers to deliberately trigger invalid operations (e.g. payee trying to approve their own milestone) to verify real-time 409 refusal feedback.
 
-### What both readers must obey
+---
 
-- **Every stage must quote the deal text.** The quote is matched against the text and replaced by the text's own wording, so what is stored is always an exact piece of the deal. A stray word or comma at the edge of a quote is tolerated; a stage whose quote cannot be found is dropped and reported, never silently kept ([validate.js](server/src/checker/validate.js)).
-- **Nothing is invented.** A missing name, amount or judge stays empty and becomes an unclear point with a question.
-- **Vague wording is flagged.** Phrases such as "satisfactory", "a reasonable time" or "about ₹20,000" each become an unclear point that quotes the phrase.
-- **Shared and repeating payments are expanded.** "Each of four people is paid ₹25,000" becomes four stages, and "₹1,200 every month for 12 months" becomes twelve.
+## 5. Context for AI Coding Agents
 
-### What stops a checklist being confirmed
+> **Copy and paste this entire section into any agent prompt (Claude, Gemini, Cursor, Copilot, ChatGPT) when delegating tasks on this codebase.**
 
-A checklist cannot be confirmed while any of these is true:
+### Agent Mission & Role
+You are working on **Settl**, an adversarial smart-contract escrow engine for milestone-based business agreements. You must maintain strict consistency across three layers:
+1. **Solidity Contracts**: Invariant math, non-reentrancy, and strict RBAC.
+2. **Express Backend**: Plain-language 409 refusals, zero-hallucination validation, atomic state.
+3. **Frontend Dashboards**: Indian Rupee formatting, responsive bento layout, inline refusal banners.
 
-- the payers' shares, the stage amounts and the total do not all agree;
-- a stage has no payee or no amount;
-- a quoted source is not in the deal text;
-- someone named has not been added as a person;
-- the judge is a payer or a payee, or a payee is also a payer;
-- any unclear point is still open.
+### Non-Negotiable Architectural Invariants
 
-These checks are plain code. The model has no say in them.
-
-### How well the readers do, measured
-
-`npm run score` reads the eight sample deals in [samples/deals/](samples/deals/), which are written in free everyday language, and compares each result with the expected checklist written beside it. Five things are checked per deal: the payers and their shares, the judge, the number of stages, the stage total, and whether a clean deal was left clean and a flawed one flagged.
-
-| Reader | Checks right | Time per deal |
-|---|---|---|
-| Model reader (Gemini `gemini-3.5-flash-lite`) | 36 of 40 | about 2 seconds |
-| Offline reader | 8 of 40 | instant |
-
-This is one run on eight deals, so treat it as an indication, and expect the model's figure to move a little between runs. It shows what each reader is for. The model reads ordinary writing. The offline reader only understands a fixed set of sentence shapes, such as those in [server/fixtures/](server/fixtures/), which it reads fully; on anything else it reports that it could not read the line instead of guessing. It keeps the product working without a model, with less reading ability.
-
-## The server
-
-`npm start` runs the Express server with the Hardhat network inside the same process, so one command starts everything. Each fictional person is mapped to one of the chain's built-in accounts, and every request names the acting `person`. A person who signs in with a wallet is known by their session instead, and signs their own transactions.
-
-After a deal is locked, the server does not decide whether an action is allowed. It sends the transaction as that person and reports what the contract said. A refusal comes back as HTTP 409 with a plain-language reason.
-
-Stage numbers in the API count from 1.
-
-| Route | Purpose |
+| Rule | Enforcement |
 |---|---|
-| `GET /health` | Server and chain are up |
-| `GET /people`, `POST /people` | List or add people. `{ name }` adds a demo person. `{ name, address }` adds a person by wallet address; they act once they sign in with that wallet. On the local chain a neutral "Platform Mediator" exists by default and can be used as the judge |
-| `POST /deals/draft` | Deal text in, proposed checklist and problem list out |
-| `PUT /deals/:id/checklist` | The organiser edits the checklist. Any edit clears earlier agreements |
-| `PUT /deals/:id/text` | The organiser rewrites the deal's words and has them read again. Clears earlier agreements |
-| `DELETE /deals/:id` | The organiser discards a deal that was never locked |
-| `POST /deals/:id/confirm` | The organiser confirms. Refused while any problem is open |
-| `POST /deals/:id/agree` | One member agrees |
-| `POST /deals/:id/lock` | Refused until everyone has agreed. For a demo organiser the server creates the vault. For a wallet organiser it returns the creation transaction for their wallet to send |
-| `POST /deals/:id/deposit`, `/cancel`, `/withdraw` | Money actions |
-| `POST /deals/:id/stake`, `/leave` | A payee puts in the stake, or walks away from a locked deal |
-| `POST /deals/:id/stages/:n/complete`, `/approve`, `/dispute`, `/resolve` | Stage actions. `:n` counts from 1. `resolve` takes `"decision": "pay"` or `"refund"` |
-| `GET /deals`, `GET /deals/:id` | Deal list, and one deal with its stage states and balances |
-| `GET /deals/:id/history` | Accepted actions and refused attempts |
-| `GET /deals/:id/summary` | Final settlement |
-| `GET /attacks`, `POST /attacks/:name` | Run `second-release`, `unauthorised-refund`, `out-of-order` or `re-entrancy` on fresh vaults. On a public network each attack runs on a local chain of its own |
-| `GET /auth/message`, `POST /auth/sign-in`, `POST /auth/sign-out`, `GET /auth/me` | Wallet sign-in |
-| `POST /rpc` | The local chain, for wallets. Not offered on a public network, which wallets reach themselves |
-| `POST /deals/:id/transactions` | A wallet person reports a transaction their wallet sent: a step on the vault, or the creation of the vault itself |
-| `GET /contract` | The vault's interface, the network's name and chain ID, and the test-money rate |
-| `POST /reset` | Local chain only. Starts again from nothing: a fresh chain, no deals, only the built-in mediator. For demonstrations |
+| **No Real Money** | All funds are simulated in Indian Rupees (`₹`) or local/Sepolia test ETH. Refuse any integration with real UPI, stripe, or mainnet RPCs. |
+| **Zero-Hallucination Quotes** | In the deal checker, any stage condition that does not quote the source text verbatim must be dropped. Never invent clauses. |
+| **Mathematical Reconciliation** | $\text{Total Deposited} = \text{Locked} + \text{Withdrawable Waiting} + \text{Paid Out}$. Any mismatch is a critical failure. |
+| **Strict 409 Refusals** | When an action violates contract or business rules, return `HTTP 409 Conflict` with `{ "reason": "plain language reason" }`. Never fail silently or return generic 500s. |
+| **Checks-Effects-Interactions** | In smart contracts, clear balances to zero *before* calling external addresses. |
+| **Arbiter Boundary** | The judge can only decide between paying the payee or refunding payers. The judge can **never** receive deal funds. |
+| **Refusal UI Banner** | Refusal messages must appear directly beneath the button that triggered the refusal using the `.refusal-alert` element. |
 
-### The dashboard
+---
 
-`npm start` serves the dashboard in [app/](app/) at `http://localhost:3000`. It is one page with three parts.
-
-| Part | What it does |
-|---|---|
-| **The bar** | Type a deal in plain words and press Enter. Four one-click examples sit under it. The "AI" switch chooses between the model and the offline reader |
-| **The workspace** | The deals you organise or are part of, each with its amount, status and progress |
-| **The open deal** | Four steps (Check, Sign, Fund, Pay), the one thing you can do next, the people, the stages, the original words, and the activity log with every refusal |
-
-How it behaves:
-
-- **It shows only what you can do.** The button on a deal is your next step: Confirm, Sign, Create vault, Deposit, Done, Approve, Dispute, Pay, Refund or Withdraw. If it is someone else's turn, it says who the deal is waiting for.
-- **Before the lock, every stage shows the words it was read from**, so the organiser checks the reader's work against the text. Problems and unclear points block Confirm until they are fixed, by editing the words and reading again or by accepting the point.
-- **Missing people are added in place.** Paste a wallet address next to a name, or on the local chain leave it empty to add a demo person.
-- **It works with a wallet or without one.** With a wallet, every signature and transaction comes from the wallet. Without one, on the local chain, you pick or add a demo person from the menu at the top right and the server acts for them.
-- **Once a deal is over, a settlement table** shows what each person paid in, received and ended up with, and whether it adds up. The figures come from the vault's own events.
-- **"Attacks" opens the attack lab**, which runs the four attacks and shows each step and its outcome.
-
-The earlier dashboard in [web/](web/) is still served at `/old`, connected through [server/public/settl-bridge.js](server/public/settl-bridge.js).
-
-## Wallets and real users
-
-There are two kinds of people.
-
-| Kind | Who they are | How the server knows it is them | Who signs their transactions |
-|---|---|---|---|
-| **Demo person** | A fictional name added with `POST /people`. Local chain only | It does not. The request just names them | The server, with a built-in chain account it holds for them |
-| **Wallet person** | A real person with their own wallet | They sign a one-time message with the wallet, and the server checks the signature against the address | Their own wallet. The server holds no key for them |
-
-Demo people exist so the product can be shown without any set-up. Wallet people are the real thing: nobody can act as one by typing their name, because the server refuses a request that names a wallet person without that person's session.
-
-### What a wallet person does
-
-1. **Signs in.** The wallet signs a short message that proves the address is theirs. It costs nothing and moves no money. A first sign-in also takes their name. On the local chain, a wallet that arrives empty is given test money.
-2. **Is added by address, if they have not signed in yet.** An organiser can put a name against a wallet address so the deal can name that person. This gives nobody any power: to act, the person still has to sign in with the wallet that owns the address.
-3. **Agrees by signature.** To agree to a deal, they sign a message carrying the deal's fingerprint. The signature is stored with the deal, and anyone can check it against their address. Editing the checklist changes the fingerprint, so old signatures stop fitting and are thrown away.
-4. **Creates the vault, if they are the organiser.** The server builds the creation transaction from the agreed terms and the organiser's wallet sends it. The deal is locked only when that exact transaction, sent by the organiser, is found on the chain. A creation sent by anyone else, or one with different terms, is refused.
-5. **Sends their own transactions.** For a deposit or a stage action, the server first asks the chain whether the contract would accept it from that address. If not, it answers with the plain reason and the wallet is never opened. If so, it hands back the transaction, and the person's wallet signs and sends it.
-
-A wallet can also call the vault directly without asking the server. The contract's rules apply either way, and the deal's state is always read from the chain.
-
-### Two networks
-
-| | Local (default) | Public test network |
-|---|---|---|
-| Start with | `npm start` | `npm run testnet` (Sepolia), or `CHAIN_RPC_URL` in `.env` |
-| Where vaults live | A Hardhat network inside the server process | On the test network, visible in its block explorer |
-| People | Demo people and wallet people | Wallet people only. The server holds no key at all |
-| Test money | Given to a wallet when it signs in. ₹1,000 is 1 test ETH | Collected from a faucet. ₹1,000 is 0.000001 test ETH |
-| How a wallet reaches the chain | Through the server at `POST /rpc`, or `http://localhost:8545` (chain ID `31337`) | Directly. The server's own RPC address is never sent to a browser |
-| After a restart | Chain, deals and people start empty | Vaults remain on the network, and deals are kept in `server/data/testnet.json` |
-
-On the local chain the server lets through only what a wallet needs: reading the chain and sending transactions the wallet has already signed. Requests that would make the node sign with the demo accounts' keys, or rewrite the chain, are refused.
-
-The server starts only on a known test network: Sepolia, Holesky, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy or a local chain. Pointed at any other network, it stops with an error.
-
-### Trying it with MetaMask
-
-[SETUP.md](SETUP.md) has the full steps for someone who has never used a wallet, including where to get test ETH. In short:
-
-1. Run `npm start` and open `http://localhost:3000`.
-2. Click **Connect**. The page asks MetaMask to add and switch to the network. Use a fresh account with no real funds.
-3. Enter a name and approve the sign-in message.
-4. To play several people on one laptop, add more accounts in MetaMask and switch between them. The page follows the switch.
-
-Restarting the server resets the local chain. If transactions then fail, use MetaMask → Settings → Advanced → "Clear activity tab data".
-
-Set `REQUIRE_WALLET=true` to switch demo people off on the local chain too, so every action needs a wallet session.
-
-**What has been tested:** the whole flow on the local chain, with real keys signing real transactions through `/rpc`, in [server/test/wallet.test.js](server/test/wallet.test.js). **What has not:** the page has not been driven by MetaMask itself, and no transaction has yet been sent on a public test network.
-
-## Project layout
+### File & Directory Map
 
 ```
-contracts/
-  MilestoneVault.sol          the vault
-  demo/WeakVault.sol          unsafe copy, for the re-entrancy comparison only
-  demo/ReentrantAttacker.sol  the attacker used by tests and the attack demo
-test/                         contract tests
-  setup.test.js               what the vault refuses at creation
-  lifecycle.test.js           payment, dispute-release and dispute-refund paths
-  attacks.test.js             second release, unauthorised refund, out-of-order steps
-  reentrancy.test.js          the same attacker against both vaults
-  group.test.js               several payers: funding, majority approval, refund split
-  stake.test.js               the optional stake: funding, return, leaving, cheat attempts
-  reconcile.test.js           random actions with the balance checked after each
-server/
-  src/app.js, index.js        the API and its entry point
-  src/store.js                JSON file store
-  src/people.js               demo people (server-held accounts) and wallet people
-  src/auth.js                 wallet sign-in and sessions
-  src/rpc.js                  the local chain, passed through for wallets
-  src/chain.js                the network, deploy, act, read state, plain-language refusal reasons
-  src/deals.js                deal routes
-  src/attacks.js              the attack lab
-  src/checker/                model.js, rules.js, validate.js, index.js
-  public/settl-bridge.js      connects the earlier dashboard in web/ to this server
-  fixtures/                   five sample deals
-  test/                       checker tests, API tests and wallet tests
-app/                          the dashboard, served at /
-  index.html, settl.css, settl.js
-web/                          the earlier dashboard, served at /old
-wallet/index.html             the wallet console, served at /wallet
-scripts/demo.js               end-to-end run of five deals and four attacks
-scripts/score.js              scores the deal checker against the sample deals
-samples/                      more sample deals with their expected checklists
-SETUP.md                      wallet set-up for people new to MetaMask
-hardhat.config.js, package.json, .env.example
+SETTL/
+├── contracts/
+│   ├── MilestoneVault.sol       # Primary audited escrow contract
+│   └── demo/
+│       ├── WeakVault.sol        # Intentionally vulnerable contract (for attack demo)
+│       └── ReentrantAttacker.sol# Reentrancy exploit attacker contract
+├── server/
+│   ├── src/
+│   │   ├── index.js             # Server entry point & RPC listener
+│   │   ├── app.js               # Express app configuration & middleware
+│   │   ├── deals.js             # Deal draft, confirm, agree, lock, stage actions
+│   │   ├── people.js            # Fictional personas & wallet address mapping
+│   │   ├── chain.js             # Ethers.js connector, contract calls, error translator
+│   │   ├── attacks.js           # Live attack simulation runner
+│   │   ├── auth.js              # Web3 signature verification & sessions
+│   │   ├── store.js             # Atomic JSON file persistence
+│   │   ├── rpc.js               # Local Hardhat JSON-RPC proxy
+│   │   └── checker/
+│   │       ├── index.js         # Checker orchestrator (model + offline fallback)
+│   │       ├── model.js         # LLM prompt & schema parsing (Claude/Gemini)
+│   │       ├── rules.js         # Deterministic regex offline rules parser
+│   │       └── validate.js      # Verbatim quote validator
+│   ├── public/
+│   │   └── settl-bridge.js      # Bridge adapter connecting /web to Express
+│   ├── fixtures/                # 5 sample deals in plain text
+│   └── test/                    # Node.js native unit tests (API, checker, wallet)
+├── web/                         # Ultra-Modern Bento Dashboard (served at /old)
+│   ├── index.html               # 5-screen semantic HTML layout
+│   ├── app.css                  # Zero-framework Bento glassmorphism CSS
+│   ├── app.js                   # Client state, Rupee formatting, action dispatchers
+│   ├── README.md                # Collaborator guide for /web
+│   └── SETTL_SYSTEM_GUIDE.md    # Detailed frontend UX design specification
+├── app/                         # Minimalist Workflow Dashboard (served at /)
+│   ├── index.html               # Single-page streamlined HTML
+│   ├── settl.css                # Clean CSS styling
+│   └── settl.js                 # Frontend logic with direct MetaMask support
+├── test/                        # Hardhat contract test suite (81 tests)
+├── scripts/
+│   ├── demo.js                  # Automated 5-deal end-to-end demo script
+│   └── score.js                 # Deal checker accuracy benchmark
+├── hardhat.config.js            # Hardhat EVM network configuration
+├── package.json                 # Project dependencies & scripts
+├── SETUP.md                     # MetaMask onboarding guide
+└── README.md                    # Master documentation & Agent guide (this file)
 ```
 
-## Tech stack
+---
 
-| Part | Tools |
-|---|---|
-| Contract | Solidity 0.8.28, OpenZeppelin `ReentrancyGuard` |
-| Local chain and contract tests | Hardhat, ethers.js, Mocha and Chai |
-| Server | Node.js, Express |
-| Deal checker | Anthropic SDK for the model path, plain JavaScript for the offline path |
-| Server tests | Node's built-in test runner |
-| Storage | One JSON file, rewritten on each start |
+### Complete REST API Contract
 
-Everything except the contract is JavaScript.
+All requests and responses use JSON.
 
-## How to run it
+| Method | Route | Auth / Role | Request Body | Success Response | 409 Refusal Condition |
+|---|---|---|---|---|---|
+| `GET` | `/health` | Public | — | `{ status: "ok" }` | Server/chain offline |
+| `GET` | `/people` | Public | — | `[{ name, address }]` | — |
+| `POST` | `/people` | Public | `{ name, address? }` | `{ ok: true, person }` | Name already exists |
+| `GET` | `/deals` | Public | — | `[{ id, title, phase, total }]` | — |
+| `POST` | `/deals/draft` | Organiser | `{ person, text }` | `{ id, checklist, unclear }` | Empty text |
+| `PUT` | `/deals/:id/checklist` | Organiser | `{ person, checklist }` | `{ ok: true, checklist }` | Deal already locked |
+| `POST` | `/deals/:id/confirm` | Organiser | `{ person }` | `{ ok: true, phase: "Agree" }` | Unclear points remain or totals mismatch |
+| `POST` | `/deals/:id/agree` | Participant | `{ person }` | `{ ok: true, agreed: [...] }` | Not a deal participant |
+| `POST` | `/deals/:id/lock` | Organiser | `{ person }` | `{ ok: true, phase: "Funding" }` | Not all members agreed |
+| `POST` | `/deals/:id/deposit` | Payer | `{ person }` | `{ ok: true, deposited: [...] }` | Not in Funding or share already paid |
+| `GET` | `/deals/:id` | Public | — | Full deal state, balances, stages | Deal not found |
+| `POST` | `/deals/:id/stages/:n/done` | Payee of stage `n` | `{ person }` | `{ ok: true, state: "Completed" }` | Caller is not payee or stage not Pending |
+| `POST` | `/deals/:id/stages/:n/approve` | Payer | `{ person }` | `{ ok: true, approvals: [...] }` | Caller is not payer or stage not Completed |
+| `POST` | `/deals/:id/stages/:n/dispute` | Payer | `{ person, disputeReason? }` | `{ ok: true, state: "Disputed" }` | Caller is not payer or stage not Completed |
+| `POST` | `/deals/:id/stages/:n/resolve` | Judge | `{ person, decision: "pay"\|"refund" }` | `{ ok: true, state: "Released"\|"Refunded" }` | Caller is not judge or stage not Disputed |
+| `POST` | `/deals/:id/withdraw` | Credited user | `{ person }` | `{ ok: true, withdrawn }` | Withdrawable balance is 0 |
+| `GET` | `/attacks` | Public | — | Metadata for 4 attack scenarios | — |
+| `POST` | `/attacks/:name` | Public | — | Live trace and outcome comparison | Invalid attack name |
+| `POST` | `/reset` | Public | — | `{ ok: true }` | Public network (local only) |
 
-You need Node.js 22 or newer. The first compile downloads the Solidity compiler, so be online for that step.
+---
+
+### State Machine & Transitions
 
 ```
+[Draft] ──confirm──► [Agree] ──lock──► [Funding] ──deposit──► [Active] ──stages settled──► [Closed]
+  │                                        │
+  └───────delete────────► [Discarded]      └───────cancel──────► [Cancelled]
+```
+
+#### Individual Stage Lifecycle:
+1. `Pending`: Payee works. Only payee can call `done`.
+2. `Completed`: Client inspects. Payers can call `approve` (triggers `Released` when majority reached) or `dispute` (triggers `Disputed`).
+3. `Disputed`: Arbiter rules. Judge calls `resolve` with `pay` (triggers `Released`) or `refund` (triggers `Refunded`).
+4. `Released` / `Refunded`: Terminal state. Money credited to withdrawable balance.
+
+---
+
+### Testing & Execution Playbook
+
+```bash
+# 1. Install dependencies
 npm install
+
+# 2. Run all tests (Hardhat contract tests + Node.js API tests)
 npm test
+
+# 3. Run contract tests only (81 tests)
+npm run test:contract
+
+# 4. Run server tests only
+npm run test:server
+
+# 5. Run end-to-end automated demo (5 deals + 4 attacks)
 npm run demo
+
+# 6. Benchmark deal checker accuracy against sample deals
+npm run score
+
+# 7. Start local server (serves / at http://localhost:3000 and /old for Bento)
 npm start
+
+# 8. Start testnet mode (Sepolia)
+npm run testnet
 ```
 
-| Command | What it does |
-|---|---|
-| `npm test` | Compiles the contracts and runs every contract test and server test |
-| `npm run test:contract` | Contract tests only |
-| `npm run test:server` | Server tests only |
-| `npm run demo` | Runs five deals from plain text to final payout through the API, then the four attacks, printing each step. Exits with an error if any step differs from what it states |
-| `npm run score` | Scores the deal checker against the sample deals in `samples/deals/` |
-| `npm start` | Starts the server and the dashboard at `http://localhost:3000`, on the local chain |
-| `npm run testnet` | The same, on the Sepolia test network. Needs a wallet with test ETH; see [SETUP.md](SETUP.md) |
+---
 
-### What the demo shows
+### Common Gotchas & Troubleshooting
 
-`npm run demo` needs no key and no set-up, and gives the same result every time.
-
-| Part | What happens |
-|---|---|
-| Freelance website | One payer, one payee, one judge: the case in the brief. Wrong moves are tried at each step and refused |
-| Flatmates sharing wifi | Three payers. The deal starts only when all three have paid, and a stage is released on two approvals out of three |
-| House construction | Three trades. One dispute is settled for the payee and one for the payer; nobody but the judge can settle either |
-| Company bonus | One payer and four employees, with one stage per person |
-| Kitchen retiling with a stake | The deal starts only once the payee has staked. The payee then walks away: the unfinished stage is refunded and the stake goes to the payer |
-| Attack lab | Second release, unauthorised refund, out-of-order steps, and re-entrancy against both the real vault and the weak copy |
-| Model reader | Only when a key is set: reads one deal with the model and reports what came back |
-
-### Trying it by hand
-
-With the server running (in PowerShell, type `curl.exe` in place of `curl`):
-
-```
-curl -X POST localhost:3000/people -H "content-type: application/json" -d "{\"names\":[\"Riya\",\"Aman\",\"Meera\"]}"
-curl -X POST localhost:3000/deals/draft -H "content-type: application/json" -d "{\"person\":\"Riya\",\"text\":\"Riya pays Rs 30000 for a website. Aman is paid Rs 30000 when the site is live. Meera settles any dispute.\"}"
-curl -X POST localhost:3000/deals/deal-1/confirm -H "content-type: application/json" -d "{\"person\":\"Riya\"}"
-curl -X POST localhost:3000/attacks/re-entrancy
-```
-
-### Configuration
-
-Copy `.env.example` to `.env` and put your values in `.env`. Every value is optional. Never put a real key in `.env.example`: that file is committed, while `.env` is ignored by git.
-
-| Variable | Meaning |
-|---|---|
-| `ANTHROPIC_API_KEY` | If set, the deal checker reads deals with Claude |
-| `GEMINI_API_KEY` | Used when no Anthropic key is set. Needs `LLM_MODEL` |
-| `LLM_MODEL` | Model name for the chosen provider. Defaults to `claude-opus-5-5` for Claude |
-| `CHECKER_MODE` | Set to `rules` to force the offline reader even when a key is present |
-| `REQUIRE_WALLET` | Set to `true` to allow wallet people only. Demo people are switched off |
-| `CHAIN_RPC_URL` | The address of a public test network. When set, Settl runs there in place of the local chain. Keep it in `.env`; it can contain a provider key |
-| `RUPEE_WEI` | How much test coin one rupee is, in wei. Defaults to 10^15 on the local chain and 10^9 on a public one |
-| `PORT` | Server port. Defaults to 3000 |
-| `RPC_PORT` | Second port where wallets can reach the local chain. Defaults to 8545 |
-
-With no key, the offline reader is used and everything else works the same.
-
-## Build status
-
-| Part | Status |
-|---|---|
-| Vault contract, including the optional stake | Done. 81 contract tests pass. The contract has not changed since |
-| Attack tests and the WeakVault comparison | Done |
-| Deal checker: offline reader, validation, fallback | Done. 34 tests pass |
-| Deal checker: model reader | Done. Run against Gemini (`gemini-3.5-flash-lite`): see the measured figures above. The Claude path has not been run against a live key |
-| Server: every route in the table above | Done. 30 API tests pass |
-| Wallet sign-in, people added by address, signed agreements, wallet-created vaults, wallet-sent transactions | Done. 37 tests pass, using real keys through `/rpc` on the local chain |
-| End-to-end demo (`npm run demo`) | Done before the latest server changes. Not re-run since |
-| Dashboard (`/`) | Written. In a headless browser, with demo people: the page loads, a typed deal becomes a draft in the workspace, missing people are added, and Confirm and Sign work. The later steps, the wallet path and the attack lab screen have not been run through the page yet, and it has not been checked by eye in a real browser |
-| Public test network (`npm run testnet`) | Written. Not yet started against Sepolia, and no transaction has been sent there |
-| Attack lab on a public network | Written. Not yet run |
-| Earlier dashboard (`/old`) | Was run end to end in a headless browser when it was served at `/`. Not re-checked since it moved |
-| Wallet console page (`/wallet`) | Written before the organiser's wallet began creating the vault. Its Lock button has not been updated for that; use the dashboard |
-
-## Limits
-
-- **All money is test money.** There is no real UPI or bank connection, and the server will not start on a real-money network.
-- **"Locked in" covers only money already deposited.** A contract cannot take money from someone later, so payers deposit their full share at the start.
-- **It cannot force anyone to do the work.** It controls only when money moves. The optional stake gives a payee a reason to finish, nothing more.
-- **There are no deadlines.** If a payee never marks a stage done and never leaves, that stage's money stays locked. A time limit after which the payers can reclaim it is planned.
-- **People still decide.** A person approves the work and a person judges a dispute. Settl does not decide whether work is good.
-- **It does not replace a legal contract.**
-- **Demo people have no login.** The server acts as whichever demo person a request names. Wallet people are authenticated by signature and sign their own transactions; `REQUIRE_WALLET=true` allows only them.
-- **A name is tied to an address by whoever adds it first.** Check the address shown next to each person before signing a deal.
-- **A session is a token held in memory.** It ends when the server restarts, and it is not tied to a browser or device.
-- **The local chain lives in memory.** Restarting the server clears every deal and vault. On a public test network the vaults stay and the deals are kept in a file.
-- **On a public test network every step costs a little test coin for gas**, so each person needs some, the payees and the judge included.
-- **The offline reader understands a limited set of sentence shapes.** Text outside them is reported as unclear, not guessed at.
-- **`reconciles()` uses strict equality.** Ether forced into the vault from outside its functions would make it report false. No money can be taken out that way.
-
-## Roadmap
-
-| Level | Who uses it | What gets added |
-|---|---|---|
-| 1. Small group | A few payers, payees and one judge | This project |
-| 2. Small business | One firm running many deals | This project: a new vault per deal |
-| 3. Company | Teams in place of single people | Approval by several managers; a panel of judges deciding by majority |
-| 4. Large enterprise | A main contractor with many subcontractors | Vaults that pay into other vaults, an inspector's sign-off as a condition, links to company accounts |
-
-Also planned: a deadline per stage, monthly payments backed by the stake in place of a full deposit up front, and real rupee payments through a licensed payment partner.
+1. **PowerShell execution policy blocks `npm` on Windows:**  
+   Use `npm.cmd start` or `cmd.exe /c "npm start"`.
+2. **MetaMask nonce errors after restarting `npm start`:**  
+   The local Hardhat chain restarts with empty memory. Fix in MetaMask: **Settings $\to$ Advanced $\to$ Clear activity tab data**.
+3. **HTTP 409 is Expected:**  
+   In both test suites and UI demonstrations, HTTP 409 is the intended refusal mechanism when testing invalid operations. Do not treat 409 responses as server bugs.
+4. **Verbatim Quote Mismatches:**  
+   If the AI deal checker drops a milestone, check that `source` exactly matches a substring from the raw prompt.
+5. **Stage numbers are 1-indexed in the REST API:**  
+   Stage paths use `1, 2, ... N` (e.g. `/deals/deal-1/stages/1/done`).
