@@ -9,10 +9,11 @@ const hre = require("hardhat");
 
 const { ethers } = hre;
 
-// Pretend money: one rupee is 10^12 wei on the local chain.
-const RUPEE = 10n ** 12n;
+// Pretend money: Rs 1,000 is one test ETH on the local chain, so one rupee is 10^15 wei.
+// At this scale gas costs a fraction of a rupee and wallets show round numbers.
+const RUPEE = 10n ** 15n;
 const toWei = (rupees) => BigInt(rupees) * RUPEE;
-const toRupees = (wei) => Number(wei / RUPEE) + Number(wei % RUPEE) / 1e12;
+const toRupees = (wei) => Number(wei / RUPEE) + Number(wei % RUPEE) / Number(RUPEE);
 
 const PHASES = ["Funding", "Active", "Cancelled", "Closed"];
 const STATES = ["Pending", "Completed", "Disputed", "Released", "Refunded"];
@@ -140,6 +141,65 @@ async function act(vault, signer, method, args = [], overrides = {}) {
   } catch (error) {
     throw refusalFrom(error, vault, method) || error;
   }
+}
+
+/**
+ * Asks the chain what would happen if `from` sent this action, without sending
+ * it. Used for people who sign with their own wallet: a refusal is known, and
+ * explained in plain words, before their wallet is ever opened.
+ * @throws {Refusal} when the contract would refuse
+ */
+async function simulate(vault, from, method, args = [], overrides = {}) {
+  try {
+    // Connected to the provider alone: no account of the server's is involved in the call.
+    await vault.connect(ethers.provider)[method].staticCall(...args, { ...overrides, from });
+  } catch (error) {
+    const refusal = refusalFrom(error, vault, method);
+    if (refusal) throw refusal;
+    if (/enough funds|insufficient funds/i.test(error.message || "")) {
+      throw new Refusal("NotEnoughFunds", "This wallet does not hold enough to send that amount.");
+    }
+    throw error;
+  }
+}
+
+/** The transaction a wallet must sign and send to carry out an action. The server never signs it. */
+async function prepare(vault, method, args = [], overrides = {}) {
+  const { chainId } = await ethers.provider.getNetwork();
+  return {
+    to: vault.target,
+    data: vault.interface.encodeFunctionData(method, args),
+    value: ethers.toBeHex(overrides.value || 0n),
+    chainId: Number(chainId),
+  };
+}
+
+/**
+ * Looks up a transaction a wallet says it sent, and says what it did.
+ * @returns {Promise<null | { from, to, succeeded, method, args }>} null if it is not on the chain
+ */
+async function lookUp(hash, vault) {
+  const [transaction, receipt] = await Promise.all([ethers.provider.getTransaction(hash), ethers.provider.getTransactionReceipt(hash)]);
+  if (!transaction || !receipt) return null;
+  let call = null;
+  try {
+    call = vault.interface.parseTransaction({ data: transaction.data, value: transaction.value });
+  } catch (ignored) {
+    // Not a call this contract understands.
+  }
+  return {
+    from: transaction.from,
+    to: transaction.to,
+    succeeded: receipt.status === 1,
+    method: call ? call.name : null,
+    args: call ? [...call.args] : [],
+  };
+}
+
+/** What a client needs to talk to a vault directly. */
+async function contractInfo() {
+  const { chainId } = await ethers.provider.getNetwork();
+  return { chainId: Number(chainId), rpcPath: "/rpc", abi: hre.artifacts.readArtifactSync("MilestoneVault").abi };
 }
 
 /** Reads everything the dashboard needs about a vault, in rupees. */
@@ -311,6 +371,10 @@ module.exports = {
   deployVault,
   vaultAt,
   act,
+  simulate,
+  prepare,
+  lookUp,
+  contractInfo,
   readVault,
   readSettlement,
   owedTo,

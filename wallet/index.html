@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settl wallet console</title>
+<style>
+  :root { --ink: #16202a; --soft: #5b6875; --line: #d7dde3; --paper: #f5f7f9; --card: #ffffff; --accent: #0b6e4f; --warn: #a4380b; --ok: #0b6e4f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
+  header { padding: 16px; background: var(--card); border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
+  header h1 { font-size: 1.25rem; margin: 0; }
+  .tag { font-size: .8rem; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--soft); }
+  main { max-width: 900px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  h3 { font-size: .95rem; margin: 16px 0 6px; }
+  p { margin: 6px 0; }
+  .soft { color: var(--soft); font-size: .9rem; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  button { font: inherit; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.plain { background: #fff; color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #f2b200; outline-offset: 2px; }
+  input, textarea { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; width: 100%; }
+  input.short { width: 220px; max-width: 100%; }
+  textarea { min-height: 110px; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  .scroll { overflow-x: auto; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; white-space: nowrap; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  #log { max-height: 260px; overflow-y: auto; font-size: .9rem; }
+  #log div { padding: 4px 0; border-top: 1px solid var(--line); }
+  .refused { color: var(--warn); }
+  .accepted { color: var(--ok); }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; word-break: break-all; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Settl wallet console</h1>
+  <span class="tag">Simulated funds</span>
+  <span class="tag">₹1,000 = 1 test ETH</span>
+</header>
+
+<main>
+  <section aria-labelledby="wallet-heading">
+    <h2 id="wallet-heading">1. Your wallet</h2>
+    <p class="soft">Your wallet is your identity here. Signing in is a free signature: it proves the address is yours and moves no money.</p>
+    <div class="row">
+      <button id="connect">Connect wallet</button>
+      <span id="wallet-status" class="soft">Not connected.</span>
+    </div>
+    <div class="row" id="sign-in-row" hidden>
+      <input id="name" class="short" placeholder="Your name (first time only)" aria-label="Your name">
+      <button id="sign-in">Sign in with wallet</button>
+      <button id="sign-out" class="plain" hidden>Sign out</button>
+    </div>
+    <details>
+      <summary class="soft">If your wallet does not switch network by itself</summary>
+      <p class="soft">Add a network by hand with these values. RPC URL: <code id="rpc-url"></code> · Chain ID: <code>31337</code> · Currency symbol: <code>ETH</code>.</p>
+      <p class="soft">If transactions fail after the server was restarted, open MetaMask → Settings → Advanced → "Clear activity tab data". A restart resets the chain, and the wallet still remembers the old one.</p>
+    </details>
+  </section>
+
+  <section aria-labelledby="deals-heading">
+    <h2 id="deals-heading">2. Deals</h2>
+    <div class="row"><button id="refresh-deals" class="plain">Refresh list</button></div>
+    <div class="scroll"><table id="deals"><tbody><tr><td class="soft">No deals yet.</td></tr></tbody></table></div>
+
+    <h3>New deal</h3>
+    <p class="soft">Write the deal in plain words. Everyone named must already have signed in, using the same name.</p>
+    <textarea id="deal-text" aria-label="Deal text" placeholder="Riya pays ₹30,000 for a website. Aman is paid ₹30,000 when the site is live. Meera settles any dispute."></textarea>
+    <div class="row"><button id="draft">Check this deal</button></div>
+  </section>
+
+  <section aria-labelledby="deal-heading" id="deal" hidden>
+    <h2 id="deal-heading">3. Deal</h2>
+    <p><strong id="deal-title"></strong> <span class="badge" id="deal-status"></span> <span class="soft" id="deal-reader"></span></p>
+    <p class="soft" id="deal-money"></p>
+
+    <div id="problems-box" hidden>
+      <h3>To fix before it can be confirmed</h3>
+      <ul id="problems"></ul>
+    </div>
+
+    <h3>People</h3>
+    <div class="scroll"><table id="people"><tbody></tbody></table></div>
+
+    <div id="before-lock">
+      <h3>Checklist</h3>
+      <p class="soft">The organiser can edit this and save. Saving clears earlier agreements.</p>
+      <textarea id="checklist" aria-label="Checklist as JSON"></textarea>
+      <div class="row">
+        <button id="save" class="plain">Save edits</button>
+        <button id="confirm">Confirm checklist</button>
+        <button id="agree">Agree (sign with wallet)</button>
+        <button id="lock">Lock the deal</button>
+      </div>
+    </div>
+
+    <div id="after-lock" hidden>
+      <h3>Money</h3>
+      <div class="row">
+        <button data-act="/deposit">Deposit my share</button>
+        <button data-act="/stake">Put in my stake</button>
+        <button data-act="/withdraw">Withdraw</button>
+        <button data-act="/leave" class="plain">Leave the deal</button>
+        <button data-act="/cancel" class="plain">Cancel before start</button>
+      </div>
+      <h3>Stages</h3>
+      <p class="soft">Every button is shown to everyone. If an action is not yours to take, the contract refuses it and the reason appears below.</p>
+      <div class="scroll"><table id="stages"><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="log-heading">
+    <h2 id="log-heading">Activity</h2>
+    <div id="log" aria-live="polite"><div class="soft">Nothing yet.</div></div>
+  </section>
+</main>
+
+<script src="/vendor/ethers.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  const CHAIN_ID_HEX = "0x7a69"; // 31337, the local chain
+  const RPC_URL = `${location.origin}/rpc`;
+  const $ = (id) => document.getElementById(id);
+  const state = { provider: null, signer: null, address: null, token: null, me: null, dealId: null, deal: null };
+
+  const rupees = (amount) => `₹${Number(amount).toLocaleString("en-IN")}`;
+  const withEth = (amount) => `${rupees(amount)} (${Number(amount) / 1000} test ETH)`;
+
+  // ---- small helpers -------------------------------------------------------
+
+  function log(kind, text) {
+    const box = $("log");
+    if (box.firstElementChild && box.firstElementChild.classList.contains("soft")) box.textContent = "";
+    const line = document.createElement("div");
+    line.className = kind;
+    line.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
+    box.prepend(line);
+  }
+
+  /** Builds an element from plain values only, so text from a deal can never run as markup. */
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function saved(key, value) {
+    try {
+      if (value === undefined) return localStorage.getItem(key);
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch (error) {
+      // Storage can be unavailable; the page works without it.
+    }
+    return null;
+  }
+
+  async function api(method, route, body) {
+    const response = await fetch(route, {
+      method,
+      headers: { "content-type": "application/json", ...(state.token ? { authorization: `Bearer ${state.token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (error) {
+      data = { error: "The server sent an unreadable reply." };
+    }
+    if (response.status === 401 && state.token) {
+      state.token = null;
+      state.me = null;
+      saved("settl-token", null);
+      showWallet();
+    }
+    return { status: response.status, body: data };
+  }
+
+  /** Runs a button handler, showing any unexpected error in the activity log. */
+  function guarded(handler) {
+    return async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await handler(event);
+      } catch (error) {
+        const rejected = error && (error.code === 4001 || error.code === "ACTION_REJECTED");
+        log("refused", rejected ? "You cancelled it in your wallet." : `Something went wrong: ${(error && (error.shortMessage || error.message)) || error}`);
+      } finally {
+        button.disabled = false;
+      }
+    };
+  }
+
+  // ---- wallet --------------------------------------------------------------
+
+  async function useLocalChain() {
+    try {
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_ID_HEX }] });
+    } catch (error) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: CHAIN_ID_HEX,
+          chainName: "Settl Local (simulated)",
+          nativeCurrency: { name: "Test Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [RPC_URL],
+        }],
+      });
+    }
+  }
+
+  async function connect() {
+    if (!window.ethereum) {
+      log("refused", "No wallet found in this browser. Install MetaMask, then reload this page.");
+      return;
+    }
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    await useLocalChain();
+    state.provider = new ethers.BrowserProvider(window.ethereum);
+    state.signer = await state.provider.getSigner();
+    state.address = await state.signer.getAddress();
+    log("accepted", `Wallet connected: ${state.address}`);
+
+    // A saved session only counts if it belongs to this wallet.
+    state.token = saved("settl-token");
+    if (state.token) {
+      const me = await api("GET", "/auth/me");
+      if (me.status === 200 && me.body.person.address.toLowerCase() === state.address.toLowerCase()) state.me = me.body.person;
+      else { state.token = null; state.me = null; saved("settl-token", null); }
+    }
+    await showWallet();
+    await listDeals();
+  }
+
+  async function showWallet() {
+    if (!state.address) return;
+    let balance = "";
+    try {
+      const wei = await state.provider.getBalance(state.address);
+      balance = ` · balance ${rupees(Math.floor(Number(ethers.formatEther(wei)) * 1000))}`;
+    } catch (error) {
+      balance = " · balance unavailable (is the wallet on the Settl network?)";
+    }
+    $("wallet-status").textContent = state.me
+      ? `Signed in as ${state.me.name} · ${state.address}${balance}`
+      : `Connected as ${state.address}${balance}. Not signed in yet.`;
+    $("sign-in-row").hidden = false;
+    $("name").hidden = Boolean(state.me);
+    $("sign-in").hidden = Boolean(state.me);
+    $("sign-out").hidden = !state.me;
+  }
+
+  async function signIn() {
+    const asked = await api("GET", `/auth/message?address=${state.address}`);
+    if (asked.status !== 200) return log("refused", asked.body.error || "Could not start sign-in.");
+    const signature = await state.signer.signMessage(asked.body.message);
+    const result = await api("POST", "/auth/sign-in", { address: state.address, signature, name: $("name").value });
+    if (result.status !== 200) return log("refused", result.body.reason || result.body.error);
+
+    state.token = result.body.token;
+    state.me = result.body.person;
+    saved("settl-token", state.token);
+    log("accepted", `Signed in as ${state.me.name}. Your wallet was given pretend funds.`);
+    await showWallet();
+    await listDeals();
+  }
+
+  async function signOut() {
+    await api("POST", "/auth/sign-out");
+    state.token = null;
+    state.me = null;
+    saved("settl-token", null);
+    log("accepted", "Signed out.");
+    await showWallet();
+  }
+
+  // ---- deals ---------------------------------------------------------------
+
+  async function listDeals() {
+    const { body } = await api("GET", "/deals");
+    const rows = $("deals").tBodies[0];
+    rows.textContent = "";
+    if (!body.deals || body.deals.length === 0) {
+      const empty = el("tr");
+      empty.append(el("td", "No deals yet.", "soft"));
+      rows.append(empty);
+      return;
+    }
+    for (const deal of body.deals) {
+      const open = el("button", "Open", "plain");
+      open.addEventListener("click", guarded(() => openDeal(deal.id)));
+      const cell = el("td");
+      cell.append(open);
+      const row = el("tr");
+      row.append(el("td", deal.title || deal.id), el("td", rupees(deal.total)), el("td", deal.phase || deal.status), cell);
+      rows.append(row);
+    }
+  }
+
+  async function openDeal(id) {
+    const { status, body } = await api("GET", `/deals/${id}`);
+    if (status !== 200) return log("refused", body.error || "Could not open that deal.");
+    state.dealId = id;
+    state.deal = body.deal;
+    showDeal();
+  }
+
+  const refresh = () => (state.dealId ? openDeal(state.dealId) : Promise.resolve());
+
+  function showDeal() {
+    const deal = state.deal;
+    const locked = deal.status === "locked";
+    $("deal").hidden = false;
+    $("deal-title").textContent = deal.title || deal.id;
+    $("deal-status").textContent = locked ? deal.phase : deal.status;
+    $("deal-reader").textContent = deal.readBy === "model" ? `Read by the model (${deal.model}).` : `Read by the offline reader. ${deal.fallbackReason || ""}`;
+    $("deal-money").textContent = locked
+      ? `Locked ${rupees(deal.money.locked)} · waiting to be withdrawn ${rupees(deal.money.waitingToBeWithdrawn)} · paid out ${rupees(deal.money.paidOut)} · books balance: ${deal.money.reconciles ? "yes" : "NO"}${deal.stake ? ` · stake ${rupees(deal.stake)} per payee` : ""}`
+      : `Total ${rupees(deal.checklist.total)}${deal.checklist.stake ? ` · stake ${rupees(deal.checklist.stake)} per payee` : ""}`;
+
+    // Problems and unclear points, before the lock.
+    const problems = [...(deal.problems || []).map((problem) => problem.message), ...deal.checklist.unclear.map((item) => `${item.issue}: ${item.question}`)];
+    $("problems-box").hidden = locked || problems.length === 0;
+    $("problems").textContent = "";
+    for (const text of problems) $("problems").append(el("li", text));
+
+    // People.
+    const people = $("people").tBodies[0];
+    people.textContent = "";
+    if (locked) {
+      for (const person of deal.people) {
+        const row = el("tr");
+        const notes = [
+          person.share !== undefined && `share ${rupees(person.share)}${person.deposited ? ", deposited" : ", not deposited yet"}`,
+          person.staked !== undefined && (person.left ? "left the deal" : person.staked ? "stake in" : "stake not in yet"),
+          person.canWithdraw > 0 && `can withdraw ${rupees(person.canWithdraw)}`,
+        ].filter(Boolean).join(" · ");
+        row.append(el("td", person.name), el("td", person.roles.join(", ")), el("td", notes));
+        people.append(row);
+      }
+    } else {
+      for (const name of deal.members) {
+        const row = el("tr");
+        row.append(el("td", name), el("td", deal.agreed.includes(name) ? "agreed" : "has not agreed yet"));
+        people.append(row);
+      }
+    }
+
+    $("before-lock").hidden = locked;
+    $("after-lock").hidden = !locked;
+    if (!locked) {
+      const { readBy, ...editable } = deal.checklist;
+      $("checklist").value = JSON.stringify(editable, null, 2);
+      return;
+    }
+
+    // Stages.
+    const stages = $("stages").tBodies[0];
+    stages.textContent = "";
+    for (const stage of deal.stages) {
+      const row = el("tr");
+      const approvals = stage.state === "Completed" && stage.approvalsNeeded > 1 ? ` (${stage.approvals} of ${stage.approvalsNeeded} approvals)` : "";
+      row.append(
+        el("td", String(stage.number)),
+        el("td", `${stage.title} — ${stage.payee}, ${rupees(stage.amount)}`),
+        el("td", `${stage.state}${approvals}${stage.waitingFor ? ` · waiting for ${stage.waitingFor}` : ""}`)
+      );
+      const buttons = el("td");
+      const actions = [
+        ["Mark done", "/complete"],
+        ["Approve", "/approve"],
+        ["Dispute", "/dispute"],
+        ["Judge: pay", "/resolve", { decision: "pay" }],
+        ["Judge: refund", "/resolve", { decision: "refund" }],
+      ];
+      for (const [label, route, body] of actions) {
+        const button = el("button", label, "plain");
+        button.addEventListener("click", guarded(() => act(`/stages/${stage.number}${route}`, body, `${label} on stage ${stage.number}`)));
+        buttons.append(button, " ");
+      }
+      row.append(buttons);
+      stages.append(row);
+    }
+  }
+
+  // ---- actions -------------------------------------------------------------
+
+  function needSignIn() {
+    if (state.me) return false;
+    log("refused", "Connect your wallet and sign in first.");
+    return true;
+  }
+
+  /**
+   * Asks the server to carry out an action. For a wallet person the server
+   * checks the action and hands back a transaction; this wallet signs and
+   * sends it, then reports the hash.
+   */
+  async function act(route, body, label) {
+    if (needSignIn()) return;
+    const asked = await api("POST", `/deals/${state.dealId}${route}`, body);
+    if (asked.status !== 200 && asked.status !== 201) {
+      log("refused", `${label}: ${asked.body.reason || asked.body.error}`);
+      return refresh();
+    }
+    if (asked.body.needsWallet) {
+      const { to, data, value } = asked.body.transaction;
+      log("accepted", `${label}: confirm it in your wallet${BigInt(value) > 0n ? ` (${ethers.formatEther(value)} test ETH)` : ""}.`);
+      const sent = await state.signer.sendTransaction({ to, data, value });
+      await sent.wait();
+      const reported = await api("POST", `/deals/${state.dealId}/transactions`, { hash: sent.hash });
+      if (reported.status !== 200) log("refused", `${label}: ${reported.body.reason || reported.body.error}`);
+      else log("accepted", `${label}: done. Transaction ${sent.hash}`);
+    } else {
+      log("accepted", `${label}: done.`);
+    }
+    await showWallet();
+    return refresh();
+  }
+
+  async function draft() {
+    if (needSignIn()) return;
+    const result = await api("POST", "/deals/draft", { text: $("deal-text").value });
+    if (result.status !== 201) return log("refused", result.body.reason || result.body.error);
+    log("accepted", `Deal ${result.body.deal.id} drafted. Read by ${result.body.deal.readBy === "model" ? "the model" : "the offline reader"}.`);
+    await listDeals();
+    await openDeal(result.body.deal.id);
+  }
+
+  async function save() {
+    if (needSignIn()) return;
+    let checklist;
+    try {
+      checklist = JSON.parse($("checklist").value);
+    } catch (error) {
+      return log("refused", "The checklist is not valid JSON. Check the commas and quotes.");
+    }
+    const result = await api("PUT", `/deals/${state.dealId}/checklist`, { checklist });
+    log(result.status === 200 ? "accepted" : "refused", result.status === 200 ? "Checklist saved." : result.body.reason || result.body.error);
+    return refresh();
+  }
+
+  async function agree() {
+    if (needSignIn()) return;
+    if (!state.deal.agreementMessage) return log("refused", "The organiser has not confirmed the checklist yet, so there is nothing to sign.");
+    const signature = await state.signer.signMessage(state.deal.agreementMessage);
+    const result = await api("POST", `/deals/${state.dealId}/agree`, { signature });
+    log(result.status === 200 ? "accepted" : "refused", result.status === 200 ? "You agreed, and your signature is recorded." : result.body.reason || result.body.error);
+    return refresh();
+  }
+
+  // ---- wiring --------------------------------------------------------------
+
+  $("rpc-url").textContent = RPC_URL;
+  $("connect").addEventListener("click", guarded(connect));
+  $("sign-in").addEventListener("click", guarded(signIn));
+  $("sign-out").addEventListener("click", guarded(signOut));
+  $("refresh-deals").addEventListener("click", guarded(listDeals));
+  $("draft").addEventListener("click", guarded(draft));
+  $("save").addEventListener("click", guarded(save));
+  $("confirm").addEventListener("click", guarded(() => act("/confirm", undefined, "Confirm checklist")));
+  $("agree").addEventListener("click", guarded(agree));
+  $("lock").addEventListener("click", guarded(() => act("/lock", undefined, "Lock the deal")));
+  for (const button of document.querySelectorAll("[data-act]")) {
+    button.addEventListener("click", guarded(() => act(button.dataset.act, undefined, button.textContent)));
+  }
+
+  if (window.ethereum && window.ethereum.on) {
+    // A different account or network means a different person: start again.
+    window.ethereum.on("accountsChanged", () => location.reload());
+    window.ethereum.on("chainChanged", () => location.reload());
+  }
+  listDeals().catch(() => {});
+})();
+</script>
+</body>
+</html>

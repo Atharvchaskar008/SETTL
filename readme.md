@@ -15,6 +15,7 @@ Built for VORTEXA 3.0, problem **B-03 MilestoneVault: Adversarial Smart-Contract
 - [The vault contract](#the-vault-contract)
 - [The deal checker (the AI part)](#the-deal-checker-the-ai-part)
 - [The server](#the-server)
+- [Wallets and real users](#wallets-and-real-users)
 - [Project layout](#project-layout)
 - [Tech stack](#tech-stack)
 - [How to run it](#how-to-run-it)
@@ -246,6 +247,55 @@ Stage numbers in the API count from 1.
 | `GET /deals/:id/history` | Accepted actions and refused attempts |
 | `GET /deals/:id/summary` | Final settlement |
 | `GET /attacks`, `POST /attacks/:name` | Run `second-release`, `unauthorised-refund`, `out-of-order` or `re-entrancy` on fresh vaults |
+| `GET /auth/message`, `POST /auth/sign-in`, `POST /auth/sign-out`, `GET /auth/me` | Wallet sign-in |
+| `POST /rpc` | The chain, for wallets |
+| `POST /deals/:id/transactions` | A wallet person reports the transaction their wallet sent |
+| `GET /contract` | The vault's interface, chain ID and RPC path, for clients that call the vault directly |
+
+## Wallets and real users
+
+There are two kinds of people.
+
+| Kind | Who they are | How the server knows it is them | Who signs their transactions |
+|---|---|---|---|
+| **Demo person** | A fictional name added with `POST /people` | It does not. The request just names them | The server, with a built-in chain account it holds for them |
+| **Wallet person** | A real person with their own wallet | They sign a one-time message with the wallet, and the server checks the signature against the address | Their own wallet. The server holds no key for them |
+
+Demo people exist so the product can be shown without any set-up. Wallet people are the real thing: nobody can act as one by typing their name, because the server refuses a request that names a wallet person without that person's session.
+
+### What a wallet person does
+
+1. **Signs in.** The wallet signs a short message that proves the address is theirs. It costs nothing and moves no money. A first sign-in also takes their name and gives the wallet pretend funds.
+2. **Agrees by signature.** To agree to a deal, they sign a message carrying the deal's fingerprint. The signature is stored with the deal, and anyone can check it against their address. Editing the checklist changes the fingerprint, so old signatures stop fitting and are thrown away.
+3. **Sends their own transactions.** For a deposit or a stage action, the server first asks the chain whether the contract would accept it from that address. If not, it answers with the plain reason and the wallet is never opened. If so, it hands back the transaction, and the person's wallet signs and sends it.
+
+A wallet can also call the vault directly without asking the server. The contract's rules apply either way, and the deal's state is always read from the chain.
+
+### How the wallet reaches the chain
+
+The chain runs inside the server, so the server passes wallet requests through at `POST /rpc`, and `npm start` also offers the same chain at `http://localhost:8545`. Only what a wallet needs is let through: reading the chain and sending transactions the wallet has already signed. Requests that would make the node sign with the demo accounts' keys, or rewrite the chain, are refused.
+
+| Wallet network setting | Value |
+|---|---|
+| RPC URL | `http://localhost:3000/rpc` or `http://localhost:8545` |
+| Chain ID | `31337` |
+| Currency symbol | `ETH` |
+
+Money is pretend: ₹1,000 is shown as 1 test ETH, so a ₹30,000 deposit appears in the wallet as 30 ETH.
+
+### Trying it with MetaMask
+
+1. Run `npm start` and open `http://localhost:3000/wallet`.
+2. Click **Connect wallet**. The page asks MetaMask to add and switch to the local network. Use a fresh account with no real funds.
+3. Enter a name and click **Sign in with wallet**.
+4. Have the other people in the deal do the same from their own browsers or MetaMask accounts. The names they sign in with must match the names in the deal text.
+5. Write a deal, then confirm, agree, lock, deposit and work through the stages.
+
+Restarting the server resets the chain. If transactions then fail, use MetaMask → Settings → Advanced → "Clear activity tab data".
+
+Set `REQUIRE_WALLET=true` to switch demo people off entirely, so every action needs a wallet session.
+
+**What has been tested:** the whole flow, with real keys signing real transactions through `/rpc`, in [server/test/wallet.test.js](server/test/wallet.test.js). **What has not:** the page has not yet been driven by MetaMask itself.
 
 ## Project layout
 
@@ -265,14 +315,17 @@ test/                         contract tests
 server/
   src/app.js, index.js        the API and its entry point
   src/store.js                JSON file store
-  src/people.js               fictional people mapped to chain accounts
+  src/people.js               demo people (server-held accounts) and wallet people
+  src/auth.js                 wallet sign-in and sessions
+  src/rpc.js                  the chain, passed through for wallets
   src/chain.js                deploy, act, read state, plain-language refusal reasons
   src/deals.js                deal routes
   src/attacks.js              the attack lab
   src/checker/                model.js, rules.js, validate.js, index.js
   fixtures/                   five sample deals
-  test/                       checker tests and API tests
-scripts/demo.js               end-to-end run of four deals and four attacks
+  test/                       checker tests, API tests and wallet tests
+wallet/index.html             the wallet console, served at /wallet
+scripts/demo.js               end-to-end run of five deals and four attacks
 samples/                      more sample deals with their expected checklists
 hardhat.config.js, package.json, .env.example
 ```
@@ -344,7 +397,9 @@ Copy `.env.example` to `.env`. Every value is optional.
 | `GEMINI_API_KEY` | Used when no Anthropic key is set. Needs `LLM_MODEL` |
 | `LLM_MODEL` | Model name for the chosen provider. Defaults to `claude-opus-5-5` for Claude |
 | `CHECKER_MODE` | Set to `rules` to force the offline reader even when a key is present |
+| `REQUIRE_WALLET` | Set to `true` to allow wallet people only. Demo people are switched off |
 | `PORT` | Server port. Defaults to 3000 |
+| `RPC_PORT` | Second port where wallets can reach the chain. Defaults to 8545 |
 
 With no key, the offline reader is used and everything else works the same.
 
@@ -357,6 +412,8 @@ With no key, the offline reader is used and everything else works the same.
 | Deal checker: offline reader, validation, fallback | Done. 31 tests pass |
 | Deal checker: model reader | Written. Not yet run against a live key; `npm run demo` exercises it when a key is set |
 | Server: every route in the table above | Done. 26 API tests pass |
+| Wallet sign-in, signed agreements, wallet-sent transactions | Done. 31 tests pass, using real keys through `/rpc` |
+| Wallet console page (`/wallet`) | Written. Its logic passes a scripted run with a stand-in wallet; not yet tried with MetaMask |
 | End-to-end demo (`npm run demo`) | Done. Five deals and four attacks, with every step checked |
 | Web app | Not built yet |
 
@@ -368,7 +425,8 @@ With no key, the offline reader is used and everything else works the same.
 - **There are no deadlines.** If a payee never marks a stage done and never leaves, that stage's money stays locked. A time limit after which the payers can reclaim it is planned.
 - **People still decide.** A person approves the work and a person judges a dispute. Settl does not decide whether work is good.
 - **It does not replace a legal contract.**
-- **There is no login.** The server acts as whichever person a request names, and it holds every test account. The contract still enforces each account's role, but a real deployment needs each person to sign with their own wallet.
+- **Demo people have no login.** The server acts as whichever demo person a request names. Wallet people are authenticated by signature and sign their own transactions; `REQUIRE_WALLET=true` allows only them.
+- **A session is a token held in memory.** It ends when the server restarts, and it is not tied to a browser or device.
 - **The chain lives in memory.** Restarting the server clears every deal and vault.
 - **The offline reader understands a limited set of sentence shapes.** Text outside them is reported as unclear, not guessed at.
 - **`reconciles()` uses strict equality.** Ether forced into the vault from outside its functions would make it report false. No money can be taken out that way.

@@ -4,26 +4,39 @@ const { createStore } = require("./store");
 const { peopleRoutes, addPerson, MEDIATOR } = require("./people");
 const { dealRoutes } = require("./deals");
 const { attackRoutes } = require("./attacks");
+const { createAuth } = require("./auth");
+const { rpcRoutes } = require("./rpc");
 
 /**
  * Builds the Settl API. The pretend blockchain runs inside this process, so
  * every start is a clean slate: no deals, no vaults, full balances.
  *
  * @param {object} [options]
- * @param {object} [options.env]        environment for the deal checker (keys, CHECKER_MODE)
+ * @param {object} [options.env]        environment: model keys, CHECKER_MODE, REQUIRE_WALLET
  * @param {string} [options.storePath]  where the JSON store is written
  * @returns {Promise<{ app: import("express").Express, store: object }>}
  */
 async function createApp({ env = process.env, storePath } = {}) {
   const app = express();
   const store = createStore(storePath);
-  await addPerson(store, MEDIATOR);
+  // With REQUIRE_WALLET=true nobody can act without signing in with a wallet,
+  // so there are no demo people at all, the built-in mediator included.
+  const requireWallet = String(env.REQUIRE_WALLET || "").toLowerCase() === "true";
+  if (!requireWallet) await addPerson(store, MEDIATOR);
 
   app.use(express.json({ limit: "200kb" }));
+
+  const auth = createAuth({ store });
+  app.use(auth.identify);
 
   const path = require("path");
   app.use(express.static(path.join(__dirname, "../../web")));
   app.use("/site", express.static(path.join(__dirname, "../../site")));
+  // The wallet console, and the browser build of ethers it uses, served locally so it works offline.
+  app.use("/wallet", express.static(path.join(__dirname, "../../wallet")));
+  app.get("/vendor/ethers.js", (request, response) => {
+    response.sendFile(path.join(__dirname, "../../node_modules/ethers/dist/ethers.umd.min.js"));
+  });
 
   app.get("/health", async (request, response, next) => {
     try {
@@ -39,8 +52,10 @@ async function createApp({ env = process.env, storePath } = {}) {
     }
   });
 
-  app.use(peopleRoutes(store));
-  app.use(dealRoutes({ store, env }));
+  app.use(auth.router);
+  app.use(rpcRoutes());
+  app.use(peopleRoutes(store, { requireWallet }));
+  app.use(dealRoutes({ store, env, requireWallet }));
   app.use(attackRoutes());
 
   app.use((request, response) => {

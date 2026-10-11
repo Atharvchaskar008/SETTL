@@ -16,15 +16,19 @@ const express = require("express");
 const { readDeal } = require("./checker");
 const { validate, membersOf, sameName } = require("./checker/validate");
 const { normalise } = require("./checker/model");
-const { findPerson, signerFor } = require("./people");
+const { findPerson, signerFor, WALLET } = require("./people");
 const chain = require("./chain");
 
 const { ethers } = chain;
 
 // The last part of a route's path names the action, except for these.
-const ACTION_NAMES = { checklist: "edit" };
+const ACTION_NAMES = { checklist: "edit", transactions: "report" };
 
-function dealRoutes({ store, env }) {
+// Contract functions and the action names the history uses for them.
+const WALLET_ACTIONS = { markComplete: "complete" };
+const STAGE_METHODS = new Set(["markComplete", "approve", "dispute", "resolve"]);
+
+function dealRoutes({ store, env, requireWallet = false }) {
   const router = express.Router();
   const now = () => new Date().toISOString();
   const peopleNames = () => store.people().map((person) => person.name);
@@ -53,6 +57,9 @@ function dealRoutes({ store, env }) {
       agreed: deal.agreed,
       waitingFor: members.filter((name) => !deal.agreed.some((agreed) => sameName(agreed, name))),
       agreementHash: deal.agreementHash,
+      // What each member signs to agree, and the signatures collected so far.
+      agreementMessage: deal.agreementHash ? agreementMessage(deal) : null,
+      signatures: deal.signatures,
       vaultAddress: deal.vault,
     };
   };
@@ -113,10 +120,11 @@ function dealRoutes({ store, env }) {
     const deal = request.params.id ? store.findDeal(request.params.id) : null;
     if (deal) {
       const last = request.path.split("/").filter(Boolean).pop();
+      const named = request.body && typeof request.body.person === "string" && request.body.person.trim();
       const entry = {
         time: now(),
         result: "refused",
-        person: (request.body && typeof request.body.person === "string" && request.body.person.trim()) || "unknown",
+        person: named || (request.signedIn && request.signedIn.name) || "unknown",
         action: ACTION_NAMES[last] || last,
         rule,
         reason,
@@ -128,16 +136,46 @@ function dealRoutes({ store, env }) {
     response.status(409).json({ refused: true, rule, reason, ...extra });
   };
 
-  /** The known person named in the request body, or a response explaining why not. */
+  /**
+   * Who is acting, or a response explaining why nobody is.
+   *
+   * A wallet session decides it outright: the signed-in person acts, and can
+   * act as nobody else. Without a session the request may name a demo person.
+   * It may not name a wallet person, because nothing would prove it is them.
+   */
   const actorOf = (request, response) => {
     const name = request.body && request.body.person;
-    if (typeof name !== "string" || !name.trim()) {
-      response.status(400).json({ error: 'Say who is acting: add "person" to the request body.' });
+    const named = typeof name === "string" && name.trim() !== "";
+
+    if (request.signedIn) {
+      if (named && !sameName(name, request.signedIn.name)) {
+        refuse(request, response, {
+          rule: "not-you",
+          reason: `You are signed in as ${request.signedIn.name}, so you cannot act as ${name.trim()}.`,
+        });
+        return null;
+      }
+      return request.signedIn;
+    }
+
+    if (requireWallet) {
+      response.status(401).json({ error: "Sign in with your wallet first." });
+      return null;
+    }
+    if (!named) {
+      response.status(400).json({ error: 'Say who is acting: add "person" to the request body, or sign in with a wallet.' });
       return null;
     }
     const person = findPerson(store, name);
     if (!person) {
       refuse(request, response, { rule: "unknown-person", reason: `${name.trim()} has not been added as a person.` });
+      return null;
+    }
+    if (person.kind === WALLET) {
+      refuse(request, response, {
+        rule: "sign-in-required",
+        reason: `${person.name} signs with their own wallet. Sign in with that wallet to act as ${person.name}.`,
+      });
       return null;
     }
     return person;
@@ -182,6 +220,7 @@ function dealRoutes({ store, env }) {
         fallbackReason: read.fallbackReason,
         dropped: read.dropped,
         agreed: [],
+        signatures: [],
         agreementHash: null,
         vault: null,
         history: [],
@@ -222,6 +261,7 @@ function dealRoutes({ store, env }) {
       deal.checklist = { ...checklist, readBy: deal.readBy };
       deal.status = "draft";
       deal.agreed = [];
+      deal.signatures = [];
       deal.agreementHash = null;
       record(deal, {
         person: actor.name,
@@ -257,6 +297,7 @@ function dealRoutes({ store, env }) {
 
       deal.status = "confirmed";
       deal.agreed = [];
+      deal.signatures = [];
       deal.agreementHash = fingerprint(deal.text, deal.checklist);
       record(deal, { person: actor.name, action: "confirm", detail: "Checklist confirmed. Waiting for everyone to agree." });
 
@@ -290,6 +331,26 @@ function dealRoutes({ store, env }) {
       if (deal.agreed.some((name) => sameName(name, actor.name))) {
         return refuse(request, response, { rule: "already-agreed", reason: `${actor.name} has already agreed.` });
       }
+
+      // Agreeing is a signature over the deal's fingerprint. A wallet person
+      // signs it themselves and the server checks it. For a demo person the
+      // server signs with the account it holds for them. Either way the
+      // signature is kept, and anyone can check it against the address.
+      const message = agreementMessage(deal);
+      let signature;
+      if (actor.kind === WALLET) {
+        signature = request.body && request.body.signature;
+        if (!signedBy(message, signature, actor.address)) {
+          return refuse(request, response, {
+            rule: "bad-signature",
+            reason: `${actor.name} must sign the agreement with their wallet. The signature is missing or does not match.`,
+            extra: { message },
+          });
+        }
+      } else {
+        signature = await (await signerFor(actor)).signMessage(message);
+      }
+      deal.signatures.push({ name: actor.name, address: actor.address, signature });
 
       deal.agreed.push(actor.name);
       const everyone = view(deal).waitingFor.length === 0;
@@ -359,6 +420,20 @@ function dealRoutes({ store, env }) {
 
       const vault = await chain.vaultAt(deal.vault);
       try {
+        if (actor.kind === WALLET) {
+          // The server holds no key for this person. It checks that the contract
+          // would accept the action, then hands back the transaction for their
+          // own wallet to sign and send. Nothing has happened on the chain yet.
+          await chain.simulate(vault, actor.address, call.method, call.args, call.overrides);
+          return response.json({
+            accepted: false,
+            needsWallet: true,
+            action,
+            stage: call.stage,
+            transaction: await chain.prepare(vault, call.method, call.args, call.overrides),
+            next: `Send this transaction from your wallet, then report its hash to POST /deals/${deal.id}/transactions.`,
+          });
+        }
         const { tx } = await chain.act(vault, await signerFor(actor), call.method, call.args, call.overrides);
         record(deal, { person: actor.name, action, stage: call.stage, tx, detail: call.detail });
         response.json({ accepted: true, action, stage: call.stage, tx, deal: await fullView(deal) });
@@ -367,6 +442,57 @@ function dealRoutes({ store, env }) {
         refuse(request, response, { rule: error.rule, reason: error.reason });
       }
     });
+
+  // A wallet person reports the transaction their wallet sent, so that it
+  // appears in the deal's history. The chain already has it either way; the
+  // server only checks that it is theirs, for this vault, and that it succeeded.
+  router.post(
+    "/deals/:id/transactions",
+    wrap(async (request, response) => {
+      const deal = dealOf(request, response);
+      const actor = deal && actorOf(request, response);
+      if (!actor) return;
+      const hash = request.body && request.body.hash;
+      if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
+        return response.status(400).json({ error: 'Send the transaction hash in "hash".' });
+      }
+      if (deal.status !== "locked") {
+        return refuse(request, response, { rule: "not-locked", reason: "The deal is not locked yet, so it has no transactions." });
+      }
+      const vault = await chain.vaultAt(deal.vault);
+      const sent = await chain.lookUp(hash, vault);
+      if (!sent) {
+        return refuse(request, response, { rule: "unknown-transaction", reason: "That transaction is not on the chain." });
+      }
+      const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+      if (!same(sent.to, deal.vault) || !same(sent.from, actor.address)) {
+        return refuse(request, response, {
+          rule: "not-your-transaction",
+          reason: "That transaction was not sent by you to this deal's vault.",
+        });
+      }
+      if (deal.history.some((entry) => entry.tx === hash)) {
+        return response.json({ accepted: true, alreadyRecorded: true, deal: await fullView(deal) });
+      }
+      if (!sent.succeeded) {
+        return refuse(request, response, { rule: "failed-on-chain", reason: "The contract refused that transaction, so nothing changed." });
+      }
+
+      const action = WALLET_ACTIONS[sent.method] || sent.method;
+      const entry = { person: actor.name, action, tx: hash, via: "wallet", detail: "Signed and sent from their own wallet." };
+      if (STAGE_METHODS.has(sent.method)) entry.stage = Number(sent.args[0]) + 1;
+      record(deal, entry);
+      response.json({ accepted: true, action, stage: entry.stage, tx: hash, deal: await fullView(deal) });
+    })
+  );
+
+  // What a client needs to call a vault directly: the chain, the RPC path and the contract's interface.
+  router.get(
+    "/contract",
+    wrap(async (request, response) => {
+      response.json(await chain.contractInfo());
+    })
+  );
 
   router.post(
     "/deals/:id/deposit",
@@ -530,4 +656,24 @@ function fingerprint(text, checklist) {
   return ethers.id(stableStringify({ text, checklist }));
 }
 
-module.exports = { dealRoutes, fingerprint };
+/** The exact words a member signs to agree. The fingerprint binds them to this text and checklist. */
+function agreementMessage(deal) {
+  return [
+    "Settl agreement",
+    `Deal: ${deal.id}`,
+    `Title: ${deal.checklist.title}`,
+    `Fingerprint: ${deal.agreementHash}`,
+    "I have read the checklist and I agree to it. Signing this moves no money.",
+  ].join("\n");
+}
+
+/** True when `signature` is `address` signing exactly `message`. */
+function signedBy(message, signature, address) {
+  try {
+    return typeof signature === "string" && ethers.verifyMessage(message, signature) === address;
+  } catch (error) {
+    return false;
+  }
+}
+
+module.exports = { dealRoutes, fingerprint, agreementMessage, signedBy };

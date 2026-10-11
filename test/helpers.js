@@ -1,8 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-// Pretend money: one rupee is 10^12 wei on the local chain.
-const RUPEE = 10n ** 12n;
+// Pretend money: Rs 1,000 is one test ETH on the local chain, so one rupee is 10^15 wei.
+const RUPEE = 10n ** 15n;
 const rupees = (amount) => BigInt(amount) * RUPEE;
 
 const AGREEMENT_HASH = ethers.id("demo agreement");
