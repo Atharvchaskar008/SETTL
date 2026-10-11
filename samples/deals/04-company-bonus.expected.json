@@ -1,0 +1,67 @@
+{
+  "title": "Company Engineering Bonus",
+  "payers": [
+    { "name": "Apex Digital Labs Private Limited", "share": 200000 }
+  ],
+  "judge": { "name": "Sunil Chawla" },
+  "stages": [
+    {
+      "title": "Test Report Signoff - Priya Nair",
+      "payee": "Priya Nair",
+      "amount": 25000,
+      "condition": "the test lead signs the test report",
+      "source": "each of the four developers receives 25000 rupees when the test lead signs the test report"
+    },
+    {
+      "title": "Test Report Signoff - Karan Kapoor",
+      "payee": "Karan Kapoor",
+      "amount": 25000,
+      "condition": "the test lead signs the test report",
+      "source": "each of the four developers receives 25000 rupees when the test lead signs the test report"
+    },
+    {
+      "title": "Test Report Signoff - Divya Joshi",
+      "payee": "Divya Joshi",
+      "amount": 25000,
+      "condition": "the test lead signs the test report",
+      "source": "each of the four developers receives 25000 rupees when the test lead signs the test report"
+    },
+    {
+      "title": "Test Report Signoff - Arjun Mehta",
+      "payee": "Arjun Mehta",
+      "amount": 25000,
+      "condition": "the test lead signs the test report",
+      "source": "each of the four developers receives 25000 rupees when the test lead signs the test report"
+    },
+    {
+      "title": "Launch Date - Priya Nair",
+      "payee": "Priya Nair",
+      "amount": 25000,
+      "condition": "on the product launch date of 15 November 2026",
+      "source": "each of the four developers receives 25000 rupees on the product launch date of 15 November 2026"
+    },
+    {
+      "title": "Launch Date - Karan Kapoor",
+      "payee": "Karan Kapoor",
+      "amount": 25000,
+      "condition": "on the product launch date of 15 November 2026",
+      "source": "each of the four developers receives 25000 rupees on the product launch date of 15 November 2026"
+    },
+    {
+      "title": "Launch Date - Divya Joshi",
+      "payee": "Divya Joshi",
+      "amount": 25000,
+      "condition": "on the product launch date of 15 November 2026",
+      "source": "each of the four developers receives 25000 rupees on the product launch date of 15 November 2026"
+    },
+    {
+      "title": "Launch Date - Arjun Mehta",
+      "payee": "Arjun Mehta",
+      "amount": 25000,
+      "condition": "on the product launch date of 15 November 2026",
+      "source": "each of the four developers receives 25000 rupees on the product launch date of 15 November 2026"
+    }
+  ],
+  "unclear": [],
+  "total": 200000
+}
