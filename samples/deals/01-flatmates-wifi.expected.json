@@ -1,0 +1,97 @@
+{
+  "title": "Flatmates WiFi Sharing",
+  "payers": [
+    { "name": "Aarav Sharma", "share": 4800 },
+    { "name": "Rohan Verma", "share": 4800 },
+    { "name": "Kabir Patel", "share": 4800 }
+  ],
+  "judge": { "name": "Deepa Nair" },
+  "stages": [
+    {
+      "title": "Month 1",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 2",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 3",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 4",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 5",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 6",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 7",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 8",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 9",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 10",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 11",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    },
+    {
+      "title": "Month 12",
+      "payee": "Vayu Broadband Solutions",
+      "amount": 1200,
+      "condition": "the flatmates confirm the wifi worked that month",
+      "source": "Each month is paid when the flatmates confirm the wifi worked that month"
+    }
+  ],
+  "unclear": [],
+  "total": 14400
+}
