@@ -225,7 +225,10 @@ describe("a freelance deal from text to final payout", () => {
 
     const vault = await chain.readVault(deal.vaultAddress);
     assert.equal(vault.agreementHash, deal.agreementHash);
-    assert.equal(vault.agreementHash, fingerprint(deal.text, deal.checklist));
+    assert.equal(vault.agreementHash, fingerprint(deal.text, deal.checklist, deal.addresses));
+    // The accounts are part of what was signed: the same deal for other accounts has another fingerprint.
+    assert.deepEqual(Object.keys(deal.addresses), deal.members);
+    assert.notEqual(vault.agreementHash, fingerprint(deal.text, deal.checklist, { ...deal.addresses, Aman: deal.addresses.Meera }));
     assert.deepEqual(vault.stages.map((stage) => stage.amount), [10000, 15000, 5000]);
   });
 

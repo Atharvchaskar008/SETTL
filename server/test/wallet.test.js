@@ -252,6 +252,8 @@ describe("agreeing with a wallet signature", () => {
     assert.deepEqual(draft.body.problems, []);
     const confirmed = await riya.as.post(`/deals/${id}/confirm`);
     message = confirmed.body.deal.agreementMessage;
+    // What a member signs names every member's account.
+    for (const member of [riya, aman, meera]) assert.ok(message.includes(member.wallet.address));
   });
   after(() => api.close());
 

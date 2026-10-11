@@ -56,6 +56,7 @@ function dealRoutes({ store, env, requireWallet = false }) {
       // What each member signs to agree, and the signatures collected so far.
       agreementMessage: deal.agreementHash ? agreementMessage(deal) : null,
       signatures: deal.signatures,
+      addresses: deal.addresses || null,
       vaultAddress: deal.vault,
     };
   };
@@ -80,7 +81,8 @@ function dealRoutes({ store, env, requireWallet = false }) {
 
   /** The agreed terms in the form a vault is created from: addresses and whole rupees. */
   const termsOf = (deal) => {
-    const addressOf = (name) => findPerson(store, name).address;
+    const signedFor = Object.entries(deal.addresses || {});
+    const addressOf = (name) => (signedFor.find(([member]) => sameName(member, name)) || [null, findPerson(store, name).address])[1];
     return {
       payers: deal.checklist.payers.map((payer) => ({ address: addressOf(payer.name), share: payer.share })),
       judge: addressOf(deal.checklist.judge.name),
@@ -413,7 +415,10 @@ function dealRoutes({ store, env, requireWallet = false }) {
       deal.status = "confirmed";
       deal.agreed = [];
       deal.signatures = [];
-      deal.agreementHash = fingerprint(deal.text, deal.checklist);
+      // Each member's account is fixed here and becomes part of what everyone signs,
+      // so the vault can only ever be created for exactly these accounts.
+      deal.addresses = Object.fromEntries(membersOf(deal.checklist).map((name) => [name, findPerson(store, name).address]));
+      deal.agreementHash = fingerprint(deal.text, deal.checklist, deal.addresses);
       record(deal, { person: actor.name, action: "confirm", detail: "Checklist confirmed. Waiting for everyone to agree." });
 
       response.json({ deal: view(deal) });
@@ -838,9 +843,12 @@ function stableStringify(value) {
   return JSON.stringify(value);
 }
 
-/** The fingerprint stored in the vault: it ties the vault to exactly this text and checklist. */
-function fingerprint(text, checklist) {
-  return ethers.id(stableStringify({ text, checklist }));
+/**
+ * The fingerprint stored in the vault. It ties the vault to exactly this text,
+ * this checklist and these accounts: change any of them and it no longer matches.
+ */
+function fingerprint(text, checklist, addresses = {}) {
+  return ethers.id(stableStringify({ text, checklist, addresses }));
 }
 
 /** The exact words a member signs to agree. The fingerprint binds them to this text and checklist. */
@@ -849,6 +857,7 @@ function agreementMessage(deal) {
     "Settl agreement",
     `Deal: ${deal.id}`,
     `Title: ${deal.checklist.title}`,
+    ...Object.entries(deal.addresses || {}).map(([name, address]) => `${name}: ${address}`),
     `Fingerprint: ${deal.agreementHash}`,
     "I have read the checklist and I agree to it. Signing this moves no money.",
   ].join("\n");
