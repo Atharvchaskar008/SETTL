@@ -1,0 +1,31 @@
+{
+  "title": "Duplex Home Renovation",
+  "payers": [
+    { "name": "Pooja Singhania", "share": 250000 }
+  ],
+  "judge": { "name": "Neha Kulkarni" },
+  "stages": [
+    {
+      "title": "Structure Framing",
+      "payee": "Amit Chawla",
+      "amount": 120000,
+      "condition": "the steel framing structure is erected and inspected",
+      "source": "Amit Chawla receives 120000 rupees when the steel framing structure is erected and inspected"
+    },
+    {
+      "title": "Roof Finishing",
+      "payee": "Amit Chawla",
+      "amount": 150000,
+      "condition": "the waterproof roof slab casting is completed and cured",
+      "source": "Amit Chawla receives 150000 rupees when the waterproof roof slab casting is completed and cured"
+    }
+  ],
+  "unclear": [
+    {
+      "issue": "Total amount mismatch",
+      "question": "The stated total is 250000 rupees but the stages sum to 270000 rupees. Which amount is correct?",
+      "source": "The stated agreement total is 250000 rupees, with 120000 rupees for structure framing and 150000 rupees for roof finishing."
+    }
+  ],
+  "total": 250000
+}

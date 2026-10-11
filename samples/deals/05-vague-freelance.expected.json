@@ -1,0 +1,34 @@
+{
+  "title": "Freelance Branding and Design",
+  "payers": [
+    { "name": "Meera Kapoor", "share": 0 }
+  ],
+  "judge": { "name": "Vikram Joshi" },
+  "stages": [
+    {
+      "title": "Brand Package and Website",
+      "payee": "Rahul Verma",
+      "amount": 0,
+      "condition": "the work is satisfactory according to the client",
+      "source": "Payment will be released to Rahul Verma when the work is satisfactory according to the client."
+    }
+  ],
+  "unclear": [
+    {
+      "issue": "Approximate total amount",
+      "question": "What is the exact payment amount in whole rupees?",
+      "source": "about 20000 rupees"
+    },
+    {
+      "issue": "Vague delivery timeline",
+      "question": "What is the exact deadline or timeframe for submitting design concepts?",
+      "source": "within a reasonable time"
+    },
+    {
+      "issue": "Subjective completion condition",
+      "question": "What objective criteria determine whether the work is satisfactory?",
+      "source": "when the work is satisfactory"
+    }
+  ],
+  "total": 0
+}
