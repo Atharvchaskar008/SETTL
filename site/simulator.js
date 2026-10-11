@@ -431,7 +431,8 @@
       wInfoElem.textContent = withdrawable[currentActor] + ' rupees';
     }
 
-    // Balances
+    // Invariant: locked + waiting + currentPaidOut === TOTAL_AMOUNT (30,000 rupees)
+    // Every state transition strictly conserves the locked agreement funds.
     var locked = getLockedBalance();
     var waiting = getWaitingBalance();
     var currentPaidOut = paidOut;
