@@ -364,77 +364,97 @@
         </section>
 
         <!-- -----------------------------------------------------------------
-             BOTTOM-LEFT CARD: Milestone Vault (Matching Vacuum Cleaner Card)
+             BOTTOM-LEFT CARD: Milestones Operational Timeline Panel
              ----------------------------------------------------------------- -->
-        <section class="bento-card bento-vault-showcase" id="card-milestone-showcase">
-          <!-- Top Row: Dropdown Title + Toggle Switch -->
+        <section class="bento-card bento-milestones-operational" id="card-milestone-showcase">
+          <!-- Card Header -->
           <div class="card-header-clean flex-between">
-            <div class="dropdown-header-group">
-              <div class="dropdown-title-row">
-                <h3 class="dropdown-title" id="active-milestone-title">Stage 2: Frontend & Spec</h3>
-                <span class="dropdown-chevron-sm">▾</span>
-              </div>
-              <p class="dropdown-sub-caption" id="active-milestone-condition">Robot vacuum cleaner • Design files in review</p>
+            <div>
+              <h2 class="card-clean-title">Milestones & Deliverables</h2>
+              <p class="card-clean-subtitle">Lifecycle verification, proof inspection & stage approvals</p>
             </div>
-            <!-- Toggle Switch -->
-            <label class="clean-toggle-switch">
-              <input type="checkbox" checked id="toggle-milestone-lock" />
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-            </label>
+            <div class="milestones-header-meta">
+              <span class="milestone-status-summary-pill" id="milestones-header-summary">3 Milestones • ₹30,000</span>
+            </div>
           </div>
 
-          <!-- Center Interactive Showcase: Circular Escrow Vault Disk with Callouts -->
-          <div class="vault-center-graphic-stage">
-            <!-- Left Stat Badge Callout -->
-            <div class="floating-callout-badge left-badge">
-              <div class="callout-value" id="active-milestone-amount">₹15,000</div>
-              <div class="callout-label">Locked Escrow</div>
-            </div>
-
-            <!-- Central High-Tech Circular Vault Disk (Matching Robot Vacuum Silhouette) -->
-            <div class="concentric-vault-disk" id="btn-inspect-vault-proof" title="Click to view milestone verification proof">
-              <div class="disk-outer-ring">
-                <div class="disk-middle-groove">
-                  <div class="disk-core-hub">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <circle cx="12" cy="12" r="4"/>
-                      <line x1="12" y1="2" x2="12" y2="4"/>
-                      <line x1="12" y1="20" x2="12" y2="22"/>
-                    </svg>
-                  </div>
+          <!-- Milestones Timeline Container -->
+          <div class="milestones-timeline-scroll" id="milestones-timeline-list">
+            <!-- Stage 1 (Submitted / Ready for Client Approval) -->
+            <div class="milestone-timeline-item active-milestone-node" data-stage-id="stg-1" id="milestone-node-stg-1">
+              <div class="timeline-left-node">
+                <span class="milestone-num-circle">1</span>
+                <span class="timeline-vertical-stem"></span>
+              </div>
+              <div class="timeline-body-content">
+                <div class="milestone-title-row flex-between">
+                  <h4 class="milestone-title-text" id="active-milestone-title">Design is delivered</h4>
+                  <span class="milestone-amount-text" id="active-milestone-amount">₹10,000</span>
                 </div>
+                <p class="milestone-condition-text" id="active-milestone-condition">"Aman · the design is delivered with responsive specs"</p>
+                
+                <div class="milestone-meta-pills-row flex-align-center gap-2">
+                  <span class="meta-tag assignee">Aman (Provider)</span>
+                  <span class="badge badge-completed">Submitted</span>
+                  <span class="evidence-pill-link" data-doc-id="1" title="Inspect submitted design proof">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    <span>design_tokens.fig</span>
+                  </span>
+                </div>
+
+                <div class="milestone-actions-toolbar" id="active-stage-buttons-area">
+                  <button type="button" class="btn-stage-op primary btn-stage-action" data-action="approve" data-stage="stg-1">Approve Milestone</button>
+                  <button type="button" class="btn-stage-op danger btn-stage-action" data-action="dispute" data-stage="stg-1">Raise Dispute</button>
+                </div>
+                <div class="refusal-slot" id="refusal-stg-1"></div>
               </div>
             </div>
 
-            <!-- Right Stat Badge Callout -->
-            <div class="floating-callout-badge right-badge">
-              <div class="callout-value">100%</div>
-              <div class="callout-label" id="active-milestone-waiting-text">Spec verified</div>
-            </div>
-          </div>
+            <!-- Stage 2 (In Progress / Pending Provider Proof) -->
+            <div class="milestone-timeline-item" data-stage-id="stg-2" id="milestone-node-stg-2">
+              <div class="timeline-left-node">
+                <span class="milestone-num-circle">2</span>
+                <span class="timeline-vertical-stem"></span>
+              </div>
+              <div class="timeline-body-content">
+                <div class="milestone-title-row flex-between">
+                  <h4 class="milestone-title-text">Pages are built</h4>
+                  <span class="milestone-amount-text">₹15,000</span>
+                </div>
+                <p class="milestone-condition-text">"Aman · the pages are built according to spec"</p>
+                
+                <div class="milestone-meta-pills-row flex-align-center gap-2">
+                  <span class="meta-tag assignee">Aman (Provider)</span>
+                  <span class="badge badge-pending">In Progress</span>
+                  <span class="due-date-pill">Due in 5 days</span>
+                </div>
 
-          <!-- Bottom 3 Pill Chips Row (Matching 75m² / 30min / 80% pills) -->
-          <div class="bottom-metrics-row">
-            <div class="stat-pill-chip">
-              <span class="chip-num">3/5</span>
-              <span class="chip-lbl">Milestones</span>
+                <div class="milestone-actions-toolbar">
+                  <button type="button" class="btn-stage-op primary btn-stage-action" data-action="done" data-stage="stg-2">Submit Proof</button>
+                </div>
+                <div class="refusal-slot" id="refusal-stg-2"></div>
+              </div>
             </div>
-            <div class="stat-pill-chip">
-              <span class="chip-num">₹15,000</span>
-              <span class="chip-lbl">In Review</span>
-            </div>
-            <div class="stat-pill-chip">
-              <span class="chip-num">100%</span>
-              <span class="chip-lbl">Reconciled</span>
-            </div>
-          </div>
 
-          <!-- Stage Actions Area -->
-          <div class="milestone-inline-buttons" id="active-stage-buttons-area">
-            <button type="button" class="action-clean-pill btn-stage-action" data-action="done" data-stage="stg-2">Submit Proof</button>
-            <button type="button" class="action-clean-pill primary btn-stage-action" data-action="approve" data-stage="stg-2">Approve</button>
-            <button type="button" class="action-clean-pill danger btn-stage-action" data-action="dispute" data-stage="stg-2">Dispute</button>
+            <!-- Stage 3 (Upcoming) -->
+            <div class="milestone-timeline-item" data-stage-id="stg-3" id="milestone-node-stg-3">
+              <div class="timeline-left-node">
+                <span class="milestone-num-circle">3</span>
+              </div>
+              <div class="timeline-body-content">
+                <div class="milestone-title-row flex-between">
+                  <h4 class="milestone-title-text">Site goes live</h4>
+                  <span class="milestone-amount-text">₹5,000</span>
+                </div>
+                <p class="milestone-condition-text">"Aman · the site goes live on production domain"</p>
+                
+                <div class="milestone-meta-pills-row flex-align-center gap-2">
+                  <span class="meta-tag assignee">Aman (Provider)</span>
+                  <span class="badge badge-neutral">Upcoming</span>
+                </div>
+                <div class="refusal-slot" id="refusal-stg-3"></div>
+              </div>
+            </div>
           </div>
         </section>
 
